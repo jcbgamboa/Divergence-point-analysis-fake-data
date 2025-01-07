@@ -13,8 +13,8 @@ import random
 PRETRIAL_BUFFER = 1000
 all_fixation_lengths = []                               # for stats
 
-MAX_PROB_POINT_X = 5000                                 # see get_event_probs()
-MAX_PROB_POINT_C = MAX_PROB_POINT_X / math.log2(math.log2(math.log2(math.log2(100))))
+MAX_PROB_POINT_X = 1000                                 # see get_event_probs()
+MAX_PROB_POINT_C = MAX_PROB_POINT_X / math.log2(100)
 
 def parse_command_line():
     description = ''
@@ -83,9 +83,9 @@ def parse_command_line():
                                 'on the "speed" with which the divergence happens. '
                                 'That is, how quickly the probability of fixating on '
                                 'the target increases, after the divergence point '
-                                'has passed. (This is not in a clear "unit", like'
+                                'has passed. (This is not in a clear "unit", like '
                                 '"prob/ms", or anything. The value you choose here '
-                                'will get multiplied by the X in the sigmoid '
+                                'will just influence the sigmoid '
                                 'function.)')
 
     # Per trial per participant variables.
@@ -108,10 +108,21 @@ def parse_command_line():
                                 'bias towards one or the other image. (some participants '
                                 'vary more, some vary less.)')
 
+    argparser.add_argument('--subj_per_trial_dspeed_var_sd',
+                           metavar='subj_per_trial_dspeed_var_sd',
+                           type=float,
+                           default=5,
+                           help='The variability SD, per trial, of the participant '
+                                'divergence "speed" towards one or the other image. '
+                                '(This is not in a clear "unit", like '
+                                '"prob/ms", or anything. The value you choose here '
+                                'will just influence the sigmoid '
+                                'function.)')
+
 
     # Per participant variables. This is set once for each participant
 
-    # Random intercepts
+    # Random effects
     argparser.add_argument('--subj_dpoint_rand_intercept_sd',
                            metavar='subjs_dpoint_rand_intercept_sd',
                            type=float,
@@ -135,6 +146,23 @@ def parse_command_line():
                            help='The variability of a per-participant bias '
                                 '(in probability) of looking towards one or the '
                                 'other image.')
+
+    argparser.add_argument('--subj_dspeed_bias_var_sd',
+                           metavar='subj_dspeed_bias_var_sd',
+                           type=float,
+                           default=5,
+                           help='The variability of a per-participant bias '
+                                'of diverging either faster or slower once past '
+                                'the divergence point. '
+                                '(This is not in a clear "unit", like '
+                                '"prob/ms", or anything. The value you choose here '
+                                'will just influence the sigmoid '
+                                'function.)')
+
+    # I will assume participants don't diverge different (don't have different
+    # `dspeed`) in the different conditions.
+
+    # For now, I'm assuming all items are equal.
 
 
     argparser.add_argument('--out_file', metavar='out_file',
@@ -181,11 +209,13 @@ def get_look_probs(trial_len,
                    cond,
                    subj_per_trial_dp_var_sd,
                    subj_per_trial_bias_var_sd,
-                   subj_bias_var_sd,
-                   subj_random_intercept,
-                   subj_random_slope,
+                   subj_per_trial_dspeed_var_sd,
+                   subj_bias_toward_obj,
+                   subj_dspeed_bias,
+                   subj_dpoint_random_intercept,
+                   subj_dpoint_random_slope,
                    args):
-    condition_fixed_effect = cond * (args.cond_effect + subj_random_slope)
+    condition_fixed_effect = cond * (args.cond_effect + subj_dpoint_random_slope)
 
     random_dp_noise = int(random.gauss(mu=0, sigma=args.rand_dp_noise_sd))
     random_prob_noise = random.gauss(mu=0, sigma=args.rand_prob_noise_sd)
@@ -193,24 +223,25 @@ def get_look_probs(trial_len,
 
     subj_per_trial_dp_var = int(random.gauss(mu=0, sigma=subj_per_trial_dp_var_sd))
     subj_per_trial_bias_var = int(random.gauss(mu=0, sigma=subj_per_trial_bias_var_sd))
+    subj_per_trial_dspeed_var = random.gauss(mu=0, sigma=subj_per_trial_dspeed_var_sd)
 
     divergence_moment = (
             pretrial_buffer +
             args.dpoint +
             random_dp_noise +
             condition_fixed_effect +
-            subj_random_intercept +
+            subj_dpoint_random_intercept +
             subj_per_trial_dp_var
     )
-    #print(condition_fixed_effect, random_dp_noise, random_prob_noise , subj_random_intercept,
+    #print(condition_fixed_effect, random_dp_noise, random_prob_noise , subj_dpoint_random_intercept,
     #      subj_per_trial_dp_var_sd,
     #      subj_per_trial_dp_var, divergence_moment)
 
-    return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_var_sd
+    return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(divergence_moment)]
             +
-            [sigmoid(i, rand_effect=random_dspeed_noise) +
-             random_prob_noise + subj_per_trial_bias_var + subj_bias_var_sd
+            [sigmoid(i, rand_effect=random_dspeed_noise + subj_per_trial_dspeed_var + subj_dspeed_bias) +
+             random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(trial_len-divergence_moment)])
 
 
@@ -253,7 +284,8 @@ def get_event_probs():
     # Ok... it turns out that just the exponential is not enough. I need
     # a stronger drug. Let's try the exponential of exponentials. The calculation
     # is the same, only with more logs/exponentials.
-    return [(2**(2**(2**(2**(i/MAX_PROB_POINT_C)))) / 100) for i in range(MAX_PROB_POINT_X+1)]
+    return [(2 ** (i/MAX_PROB_POINT_C) / 100) for i in range(MAX_PROB_POINT_X+1)]
+    #return [(2**(2**(2**(2**(i/MAX_PROB_POINT_C)))) / 100) for i in range(MAX_PROB_POINT_X+1)]
 
 
 
@@ -318,18 +350,22 @@ def generate_trial_data(subj_id,
                         cond,
                         subj_per_trial_dp_var_sd,
                         subj_per_trial_bias_var_sd,
-                        subj_bias_var_sd,
-                        subj_random_intercept,
-                        subj_random_slope,
+                        subj_per_trial_dspeed_var_sd,
+                        subj_bias_toward_obj,
+                        subj_dspeed_bias,
+                        subj_dpoint_random_intercept,
+                        subj_dpoint_random_slope,
                         args):
     prob = get_look_probs(
         args.trial_len + PRETRIAL_BUFFER, PRETRIAL_BUFFER,
         cond,
         subj_per_trial_dp_var_sd,
         subj_per_trial_bias_var_sd,
-        subj_bias_var_sd,
-        subj_random_intercept,
-        subj_random_slope,
+        subj_per_trial_dspeed_var_sd,
+        subj_bias_toward_obj,
+        subj_dspeed_bias,
+        subj_dpoint_random_intercept,
+        subj_dpoint_random_slope,
         args
     )
 
@@ -350,15 +386,20 @@ def generate_trial_data(subj_id,
 def generate_subj_data(subj_id, args):
     n_conditions = args.n_conds
 
+    # These influence variations that occur every trial
     subj_per_trial_dp_var_sd = random.gauss(mu=0, sigma=args.subj_per_trial_dpoint_var_sd)
     subj_per_trial_bias_var_sd = random.gauss(mu=0, sigma=args.subj_per_trial_bias_var_sd)
-    subj_bias_var_sd = random.gauss(mu=0, sigma=args.subj_bias_var_sd)
+    subj_per_trial_dspeed_var_sd = random.gauss(mu=0, sigma=args.subj_per_trial_dspeed_var_sd)
+
+    # These are fixed for each subject
+    subj_bias_toward_obj = random.gauss(mu=0, sigma=args.subj_bias_var_sd)
+    subj_dspeed_bias = random.gauss(mu=0, sigma=args.subj_dspeed_bias_var_sd)
 
     # This is the effect of condition on each participant
     # TODO: Maybe this should inside the for loop, recalculated every condition.
     #       It won't matter now because there're only 2 conditions.
-    subj_random_intercept = int(random.gauss(mu=0, sigma=args.subj_dpoint_rand_intercept_sd))
-    subj_random_slope = int(random.gauss(mu=0, sigma=args.subj_dpoint_rand_slope_sd))
+    subj_dpoint_random_intercept = int(random.gauss(mu=0, sigma=args.subj_dpoint_rand_intercept_sd))
+    subj_dpoint_random_slope = int(random.gauss(mu=0, sigma=args.subj_dpoint_rand_slope_sd))
 
     # `subj_trials` is a list of data frames
     subj_trials = []
@@ -374,12 +415,27 @@ def generate_subj_data(subj_id, args):
                     cond,
                     subj_per_trial_dp_var_sd,
                     subj_per_trial_bias_var_sd,
-                    subj_bias_var_sd,
-                    subj_random_intercept,
-                    subj_random_slope,
+                    subj_per_trial_dspeed_var_sd,
+                    subj_bias_toward_obj,
+                    subj_dspeed_bias,
+                    subj_dpoint_random_intercept,
+                    subj_dpoint_random_slope,
                     args)
             )
     return subj_trials
+
+
+def generate_data(args):
+    # `all_data` is a list of data frames
+    all_data = []
+    for subj in range(args.n_subjs):
+        subj_id = "P" + str(subj)
+        # Define other variables
+        subj_trials = generate_subj_data(subj_id, args)
+        all_data.extend(subj_trials)
+
+    return pd.concat(all_data, axis=0)
+
 
 def per_trial_fixation_stats():
     maxes = []
@@ -442,18 +498,6 @@ def overall_fixation_stats(out_folder):
         f.write("{}, {}, {}, {}, {}".format(max_f, min_f, mean_f, median_f, sd_f))
     p.save(os.path.join(out_folder, 'histogram_fixation.svg'))
 
-
-
-def generate_data(args):
-    # `all_data` is a list of data frames
-    all_data = []
-    for subj in range(args.n_subjs):
-        subj_id = "P" + str(subj)
-        # Define other variables
-        subj_trials = generate_subj_data(subj_id, args)
-        all_data.extend(subj_trials)
-
-    return pd.concat(all_data, axis=0)
 
 
 
