@@ -11,10 +11,14 @@ import argparse
 import random
 
 PRETRIAL_BUFFER = 1000
-all_fixation_lengths = []                               # for stats
+
+FIXATION_LEN_MU = 215     # Fixations should be between 180 and 250. 215 is the
+FIXATION_LEN_SD = 35      # midpoint, and 215-35=180, and 215+35=250
 
 MAX_PROB_POINT_X = 1000                                 # see get_event_probs()
 MAX_PROB_POINT_C = MAX_PROB_POINT_X / math.log2(100)
+
+all_fixation_lengths = []                               # for stats
 
 def parse_command_line():
     description = ''
@@ -294,33 +298,44 @@ def get_events(trial_len):
     # The plan is to have an event happen every ~200ms (a typical fixation has
     # between 180ms and 250ms), and for it to be super rare for fixations to
     # happen immediately one after another.
-    events = []
 
-    probs_vector = []
+    # events = []
+    #
+    # probs_vector = []
+    # fixation_lengths = []
+    #
+    #
+    # while (len(events) < trial_len):
+    #     # Probs behave as if there were always an event in the first millisecond
+    #     # (but this won't matter once we eventually discard the first milliseconds --
+    #     # see PRETRIAL_BUFFER)
+    #     probs = get_event_probs()
+    #     fix_len = 0                                     # for stats
+    #
+    #     for p in probs:
+    #         curr_event = random.random() < p
+    #         events.append(curr_event)
+    #
+    #         probs_vector.append(p)                      # for stats
+    #         fix_len += 1                                # for stats
+    #
+    #         if curr_event:
+    #             # We got an event, time to reset
+    #             break
+    #         if len(events) >= trial_len:
+    #             # Without this, we may get stuck in the for loop for too long
+    #             break
+    #
+    #     fixation_lengths.append(fix_len)                # for stats
+    events = [False]*trial_len
     fixation_lengths = []
 
-    while (len(events) < trial_len):
-        # Probs behave as if there were always an event in the first millisecond
-        # (but this won't matter once we eventually discard the first milliseconds --
-        # see PRETRIAL_BUFFER)
-        probs = get_event_probs()
-        fix_len = 0                                     # for stats
-
-        for p in probs:
-            curr_event = random.random() < p
-            events.append(curr_event)
-
-            probs_vector.append(p)                      # for stats
-            fix_len += 1                                # for stats
-
-            if curr_event:
-                # We got an event, time to reset
-                break
-            if len(events) >= trial_len:
-                # Without this, we may get stuck in the for loop for too long
-                break
-
-        fixation_lengths.append(fix_len)                # for stats
+    idx = 0
+    while idx < trial_len:
+        events[idx] = True
+        curr_fixation_len = int(random.gauss(mu=FIXATION_LEN_MU, sigma=FIXATION_LEN_SD))
+        fixation_lengths.append(curr_fixation_len)
+        idx += curr_fixation_len
 
     all_fixation_lengths.append(fixation_lengths)
     return events
