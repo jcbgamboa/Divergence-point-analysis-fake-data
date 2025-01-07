@@ -173,6 +173,11 @@ def parse_command_line():
                            type=str, default='fake_data.csv',
                            help='File to be produced with the data')
 
+    argparser.add_argument('--rand_seed', metavar='rand_seed',
+                           type=str, default=None,
+                           help='File to be produced with the data')
+
+
     argparser.add_argument('--dump_per_trial_fixation_stats',
                            metavar='dump_per_trial_fixation_stats',
                            type=bool, default=True,
@@ -520,6 +525,11 @@ if __name__ == '__main__':
     # Tests the functionalities of this file
     print("Parsing command line...")
     args = parse_command_line()
+
+    if args.rand_seed is not None:
+        print('Received random seed. Setting it...')
+        random.seed(args.rand_seed)
+
     print("Generating data...")
     out_df = generate_data(args)
     print("Dumping into output file...")
