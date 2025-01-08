@@ -179,8 +179,8 @@ def parse_command_line():
 
 
     argparser.add_argument('--dump_per_trial_fixation_stats',
-                           metavar='dump_per_trial_fixation_stats',
-                           type=bool, default=True,
+                           default=False,
+                           action='store_true',
                            help='If set, produces a file with statistics of the '
                                 'fixations of each trial. Each row will contain stats '
                                 'of a given trial. The last row will contain an '
@@ -188,8 +188,8 @@ def parse_command_line():
                                 'called `per_trial_fixation_stats.csv`.')
 
     argparser.add_argument('--dump_overall_fixation_stats',
-                           metavar='dump_overall_fixation_stats',
-                           type=bool, default=True,
+                           default=False,
+                           action='store_true',
                            help='(Requires library plotnine) If set, produces a folder '
                                 'with statistics about the length of the fixations, '
                                 'regardless of which trial they come from. The folder '
@@ -541,7 +541,7 @@ if __name__ == '__main__':
         stats = per_trial_fixation_stats()
         print("Dumping per trial fixation stats...")
         stats.to_csv('per_trial_fixation_stats.csv')
-        print(stats)
+        #print(stats)
 
     if args.dump_overall_fixation_stats:
         import statistics as s
