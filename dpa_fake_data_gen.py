@@ -11,14 +11,15 @@ import argparse
 import random
 
 PRETRIAL_BUFFER = 1000
+POSTTRIAL_BUFFER = 0
 
 FIXATION_LEN_MU = 215     # Fixations should be between 180 and 250. 215 is the
 FIXATION_LEN_SD = 35      # midpoint, and 215-35=180, and 215+35=250
 
-MAX_PROB_POINT_X = 1000                                 # see get_event_probs()
-MAX_PROB_POINT_C = MAX_PROB_POINT_X / math.log2(100)
 
 all_fixation_lengths = []                               # for stats
+item_dpoint_biases = {}
+item_dspeed_biases = {}
 
 def parse_command_line():
     description = ''
@@ -128,7 +129,7 @@ def parse_command_line():
 
     # Random effects
     argparser.add_argument('--subj_dpoint_rand_intercept_sd',
-                           metavar='subjs_dpoint_rand_intercept_sd',
+                           metavar='subj_dpoint_rand_intercept_sd',
                            type=float,
                            default=50,
                            help="The variability (in ms) of the random intercept of "
@@ -166,7 +167,26 @@ def parse_command_line():
     # I will assume participants don't diverge different (don't have different
     # `dspeed`) in the different conditions.
 
-    # For now, I'm assuming all items are equal.
+    # Per item variables. This is set once for each item
+    argparser.add_argument('--item_dpoint_bias_sd',
+                           metavar='item_dpoint_bias_sd',
+                           type=float,
+                           default=50,
+                           help="The variability (in ms) of the random intercept of "
+                                "items' divergence point.")
+
+    argparser.add_argument('--item_dspeed_bias_sd',
+                           metavar='item_dspeed_bias_sd',
+                           type=float,
+                           default=5,
+                           help='The variability of a per-item bias '
+                                'of diverging either faster or slower once past '
+                                'the divergence point. '
+                                '(This is not in a clear "unit", like '
+                                '"prob/ms", or anything. The value you choose here '
+                                'will just influence the sigmoid '
+                                'function.)')
+
 
 
     argparser.add_argument('--out_file', metavar='out_file',
@@ -223,6 +243,8 @@ def get_look_probs(trial_len,
                    subj_dspeed_bias,
                    subj_dpoint_random_intercept,
                    subj_dpoint_random_slope,
+                   item_dpoint_bias,
+                   item_dspeed_bias,
                    args):
     condition_fixed_effect = cond * (args.cond_effect + subj_dpoint_random_slope)
 
@@ -240,7 +262,8 @@ def get_look_probs(trial_len,
             random_dp_noise +
             condition_fixed_effect +
             subj_dpoint_random_intercept +
-            subj_per_trial_dp_var
+            subj_per_trial_dp_var +
+            item_dpoint_bias
     )
     #print(condition_fixed_effect, random_dp_noise, random_prob_noise , subj_dpoint_random_intercept,
     #      subj_per_trial_dp_var_sd,
@@ -249,52 +272,10 @@ def get_look_probs(trial_len,
     return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(divergence_moment)]
             +
-            [sigmoid(i, rand_effect=random_dspeed_noise + subj_per_trial_dspeed_var + subj_dspeed_bias) +
+            [sigmoid(i, rand_effect=random_dspeed_noise + subj_per_trial_dspeed_var +
+                                    subj_dspeed_bias + item_dspeed_bias) +
              random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(trial_len-divergence_moment)])
-
-
-def get_event_probs():
-    # Ok... for the "exponential decay" probability of there being an event,
-    # we'll use the (seemingly bizarre) function:
-    #
-    #   x / c
-    # 2
-    # --------
-    #   100
-    #
-    # where `c` is a constant value chosen to make the exponential "slower".
-    #
-    # The choice of this function (and of c) has the following reasoning:
-    # 1) It is an exponential, so it increases very (!) slowly in the beginning
-    # 2) It has the convenience of passing through a convenient point of choice.
-    #    The commented lines below show where this point might be (I started out
-    #    with (300,1), but noticed that it still caused the fixations to be too
-    #    short. So I tried out other points).
-    #
-    # The value of c is calculated as follows. Say I wanted it to pass by the
-    # point (300,1). In that case, since my function looks like y = (2**(x/c))/100
-    # then, if I substitute x=300 and y=1, I get:
-    #
-    # 1 = (2**(300/c))/100          # pass the 100 to the other side
-    # 100 = 2**(300/c)              # apply log2 to both sides (gets rid of the 2**)
-    # log2(100) = 300/c             # pass c to the other side
-    # c log2(100) = 300             # pass log2(100) to the other side
-    # c = 300/log2(100) = 45.15449934959718
-    #
-    # Basically, I'm hoping to force most fixations to last somewhere in the
-    # range 180ms~250ms, because this is the typical length of a real fixation.
-    #
-    #return [(2 ** (i/45.15449934959718) / 100) for i in range(301)]   # passes (300,1)
-    #return [(2 ** (i/60.205999132796244) / 100) for i in range(401)]  # passes (400,1)
-    #return [(2 ** (i/75.2574989159953) / 100) for i in range(501)]    # passes (500,1)
-    #return [(2 ** (i/105.36049848239342) / 100) for i in range(701)]  # passes (700,1)
-    #
-    # Ok... it turns out that just the exponential is not enough. I need
-    # a stronger drug. Let's try the exponential of exponentials. The calculation
-    # is the same, only with more logs/exponentials.
-    return [(2 ** (i/MAX_PROB_POINT_C) / 100) for i in range(MAX_PROB_POINT_X+1)]
-    #return [(2**(2**(2**(2**(i/MAX_PROB_POINT_C)))) / 100) for i in range(MAX_PROB_POINT_X+1)]
 
 
 
@@ -303,35 +284,6 @@ def get_events(trial_len):
     # The plan is to have an event happen every ~200ms (a typical fixation has
     # between 180ms and 250ms), and for it to be super rare for fixations to
     # happen immediately one after another.
-
-    # events = []
-    #
-    # probs_vector = []
-    # fixation_lengths = []
-    #
-    #
-    # while (len(events) < trial_len):
-    #     # Probs behave as if there were always an event in the first millisecond
-    #     # (but this won't matter once we eventually discard the first milliseconds --
-    #     # see PRETRIAL_BUFFER)
-    #     probs = get_event_probs()
-    #     fix_len = 0                                     # for stats
-    #
-    #     for p in probs:
-    #         curr_event = random.random() < p
-    #         events.append(curr_event)
-    #
-    #         probs_vector.append(p)                      # for stats
-    #         fix_len += 1                                # for stats
-    #
-    #         if curr_event:
-    #             # We got an event, time to reset
-    #             break
-    #         if len(events) >= trial_len:
-    #             # Without this, we may get stuck in the for loop for too long
-    #             break
-    #
-    #     fixation_lengths.append(fix_len)                # for stats
     events = [False]*trial_len
     fixation_lengths = []
 
@@ -375,6 +327,8 @@ def generate_trial_data(subj_id,
                         subj_dspeed_bias,
                         subj_dpoint_random_intercept,
                         subj_dpoint_random_slope,
+                        item_dpoint_bias,
+                        item_dspeed_bias,
                         args):
     prob = get_look_probs(
         args.trial_len + PRETRIAL_BUFFER, PRETRIAL_BUFFER,
@@ -386,6 +340,8 @@ def generate_trial_data(subj_id,
         subj_dspeed_bias,
         subj_dpoint_random_intercept,
         subj_dpoint_random_slope,
+        item_dpoint_bias,
+        item_dspeed_bias,
         args
     )
 
@@ -402,6 +358,16 @@ def generate_trial_data(subj_id,
     trial_data = create_dataframe(looks[PRETRIAL_BUFFER:], subj_id, trial_id, cond)
 
     return trial_data
+
+def get_item_dpoint_bias(cond, trial):
+    if (cond, trial) not in item_dpoint_biases:
+        item_dpoint_biases[(cond, trial)] = int(random.gauss(mu=0, sigma=args.item_dpoint_bias_sd))
+    return item_dpoint_biases[(cond, trial)]
+
+def get_item_dspeed_bias(cond, trial):
+    if (cond, trial) not in item_dspeed_biases:
+        item_dspeed_biases[(cond, trial)] = int(random.gauss(mu=0, sigma=args.item_dspeed_bias_sd))
+    return item_dspeed_biases[(cond, trial)]
 
 def generate_subj_data(subj_id, args):
     n_conditions = args.n_conds
@@ -424,9 +390,13 @@ def generate_subj_data(subj_id, args):
     # `subj_trials` is a list of data frames
     subj_trials = []
     for cond in range(n_conditions):
-
         for trial in range(args.n_trials):
             trial_id = "T" + str(trial)
+
+            #item_dpoint_bias = get_item_dpoint_bias(cond, trial)
+            #item_dspeed_bias = get_item_dspeed_bias(cond, trial)
+            item_dpoint_bias = 0
+            item_dspeed_bias = 0
 
             subj_trials.append(
                 generate_trial_data(
@@ -440,6 +410,8 @@ def generate_subj_data(subj_id, args):
                     subj_dspeed_bias,
                     subj_dpoint_random_intercept,
                     subj_dpoint_random_slope,
+                    item_dpoint_bias,
+                    item_dspeed_bias,
                     args)
             )
     return subj_trials
