@@ -3,9 +3,10 @@ import subprocess
 import os
 
 
+
 # General variables
 OUTPUT_FILENAME  = 'fake_data.csv'
-RANDOM_SEED      = 'abcd'
+RANDOM_SEED      = '1234'
 
 N_PARTICIPANTS   = 50
 N_TRIALS         = 12
@@ -18,7 +19,7 @@ CONDITION_EFFECT = 150
 
 # Random variation for every trial
 RANDOM_DIVERGENCE_POINT_NOISE_SD   = 10
-RANDOM_PROBABILITY_NOISE_SD        = 0.5
+RANDOM_PROBABILITY_NOISE_SD        = 0.1
 RANDOM_DIVERGENCE_SPEED_NOISE_SD   = 5
 
 
@@ -26,20 +27,27 @@ RANDOM_DIVERGENCE_SPEED_NOISE_SD   = 5
 # This is used to produce a per-participant random variability (so that some
 # participants are more variable, and some are less), that is set every trial
 PARTICIPANT_PER_TRIAL_DIVERGENCE_POINT_VARIATION_SD = 10
-PARTICIPANT_PER_TRIAL_BIAS_VARIATION_SD             = 0.5
+PARTICIPANT_PER_TRIAL_BIAS_VARIATION_SD             = 0.1
 PARTICIPANT_PER_TRIAL_DIVERGENCE_SPEED_VARIATION_SD = 5
 
 
 # Per participant variables. This is set once for each participant
 PARTICIPANT_DIVERGENCE_POINT_RANDOM_INTERCEPT_SD    = 50
 PARTICIPANT_DIVERGENCE_POINT_RANDOM_SLOPE_SD        = 50
-PARTICIPANT_BIAS_VARIATION_SD                       = 50
+PARTICIPANT_BIAS_VARIATION_SD                       = 0.1
 PARTICIPANT_DIVERGENCE_SPEED_BIAS_VARIATION_SD      = 5
 
 
+# Per item variables. This is set once for each combination item/condition
+# (I do it along with condition because I assume that the items are
+# different in the different conditions)
+ITEM_DIVERGENCE_POINT_BIAS_SD                       = 50
+ITEM_DIVERGENCE_SPEED_BIAS_SD                       = 5
+
+
 # If you want additional stats, set these to true
-DUMP_OVERALL_FIXATION_STATS    = True
-DUMP_PER_TRIAL_FIXATION_STATS  = True
+DUMP_OVERALL_FIXATION_STATS    = False
+DUMP_PER_TRIAL_FIXATION_STATS  = False
 
 
 
@@ -65,6 +73,8 @@ run_args = [
     "--subj_dpoint_rand_slope_sd",       str(PARTICIPANT_DIVERGENCE_POINT_RANDOM_SLOPE_SD),
     "--subj_bias_var_sd",                str(PARTICIPANT_BIAS_VARIATION_SD),
     "--subj_dspeed_bias_var_sd",         str(PARTICIPANT_DIVERGENCE_SPEED_BIAS_VARIATION_SD),
+    "--item_dpoint_bias_sd",             str(ITEM_DIVERGENCE_POINT_BIAS_SD),
+    "--item_dspeed_bias_sd",             str(ITEM_DIVERGENCE_SPEED_BIAS_SD),
 ]
 
 if DUMP_OVERALL_FIXATION_STATS:
