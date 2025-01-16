@@ -11,7 +11,7 @@ import argparse
 import random
 
 PRETRIAL_BUFFER = 1000
-POSTTRIAL_BUFFER = 0
+POSTTRIAL_BUFFER = 400
 
 FIXATION_LEN_MU = 215     # Fixations should be between 180 and 250. 215 is the
 FIXATION_LEN_SD = 35      # midpoint, and 215-35=180, and 215+35=250
@@ -60,6 +60,16 @@ def parse_command_line():
                                 'condition will diverge 100ms after the first, '
                                 'the third condition will diverge 100ms after the '
                                 'second, and so on.)')
+
+    # Probability of looking away from the screen
+    argparser.add_argument('--outmonitor_look_prob',
+                           metavar='outmonitor_look_prob',
+                           type=float,
+                           default=0.01,
+                           help='Every fixation, there is a chance a participant '
+                                'looks away from the screen, i.e., does not look '
+                                'towards any of the objects. This models it. '
+                                '(see also `subj_outmonitor_look_bias_sd`)')
 
 
     # Random noise per trial. This is uncontrollable! Every participant varies
@@ -164,6 +174,19 @@ def parse_command_line():
                                 'will just influence the sigmoid '
                                 'function.)')
 
+    argparser.add_argument('--subj_outmonitor_look_bias_sd',
+                           metavar='subj_outmonitor_look_bias_sd',
+                           type=float,
+                           default=0.004,
+                           help='Every fixation, there is a chance a participant '
+                                'looks away from the screen, i.e., does not look '
+                                'towards any of the objects. While the variable '
+                                '`outmonitor_look_prob` models that probability, this '
+                                'variable models a per-participant random variation '
+                                'that is added to it. (ideally, this should be much'
+                                'smaller than `outmonitor_look_prob`)')
+
+
     # I will assume participants don't diverge different (don't have different
     # `dspeed`) in the different conditions.
 
@@ -198,6 +221,7 @@ def parse_command_line():
                            help='File to be produced with the data')
 
 
+
     argparser.add_argument('--dump_per_trial_fixation_stats',
                            default=False,
                            action='store_true',
@@ -223,15 +247,19 @@ def parse_command_line():
 
 def sigmoid(x, slow_factor=50, rand_effect=0.):
     # This is:
-    #               x
-    #              e
-    # sigmoid(x) = ------
+    #              (version A)    (version B)
     #                   x
-    #              1 + e
+    #                  e              1
+    # sigmoid(x) =   -------   =   ---------
+    #                     x              -x
+    #                1 + e          1 + e
     #
     # `slow_factor` is just supposed to make it approach 1 slower.
-    return ((math.e ** (x/(slow_factor+rand_effect))) /
-            (1 + math.e ** (x/(slow_factor+rand_effect))))
+    #
+    # According to https://stackoverflow.com/a/64717799 , the version A is
+    # numerically stable when x<0, and the version B is numerically stable when
+    # x>0. Since my x is always positive, I will use only version B
+    return 1 / (1 + math.e ** (-x/(slow_factor+rand_effect)))
 
 def get_look_probs(trial_len,
                    pretrial_buffer,
@@ -300,9 +328,11 @@ def get_events(trial_len):
 def create_dataframe(looks, subj_id, trial_id, cond):
     data = []
     for idx,i in enumerate(looks):
-        # For now, I'll assume there's always only a Target and a Distractor
-        data.append((idx, 'Target', int(i)))
-        data.append((idx, 'Distractor', int(not i)))
+        looking_target = True if i == 'Target' else False
+        looking_distractor = True if i == 'Distractor' else False
+
+        data.append((idx, 'Target', int(looking_target)))
+        data.append((idx, 'Distractor', int(looking_distractor)))
 
     milliseconds, objs, is_looking = zip(*data)
 
@@ -325,6 +355,7 @@ def generate_trial_data(subj_id,
                         subj_per_trial_dspeed_var_sd,
                         subj_bias_toward_obj,
                         subj_dspeed_bias,
+                        subj_outmonitor_look_bias,
                         subj_dpoint_random_intercept,
                         subj_dpoint_random_slope,
                         item_dpoint_bias,
@@ -352,7 +383,12 @@ def generate_trial_data(subj_id,
     curr_looking_at = random.random() < prob[0]
     for ms, e in enumerate(events):
         if e:
-            curr_looking_at = random.random() < prob[ms]
+            # Let's see if the participant will look away from the monitor
+            will_look_outmonitor = random.random() < args.outmonitor_look_prob + subj_outmonitor_look_bias
+            if will_look_outmonitor:
+                curr_looking_at = 'Away'
+            else:
+                curr_looking_at = 'Target' if random.random() < prob[ms] else 'Distractor'
         looks.append(curr_looking_at)
 
     trial_data = create_dataframe(looks[PRETRIAL_BUFFER:], subj_id, trial_id, cond)
@@ -380,6 +416,7 @@ def generate_subj_data(subj_id, args):
     # These are fixed for each subject
     subj_bias_toward_obj = random.gauss(mu=0, sigma=args.subj_bias_var_sd)
     subj_dspeed_bias = random.gauss(mu=0, sigma=args.subj_dspeed_bias_var_sd)
+    subj_outmonitor_look_bias = random.gauss(mu=0, sigma=args.subj_outmonitor_look_bias_sd)
 
     # This is the effect of condition on each participant
     # TODO: Maybe this should inside the for loop, recalculated every condition.
@@ -408,6 +445,7 @@ def generate_subj_data(subj_id, args):
                     subj_per_trial_dspeed_var_sd,
                     subj_bias_toward_obj,
                     subj_dspeed_bias,
+                    subj_outmonitor_look_bias,
                     subj_dpoint_random_intercept,
                     subj_dpoint_random_slope,
                     item_dpoint_bias,
