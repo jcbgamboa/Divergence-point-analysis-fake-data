@@ -23,6 +23,21 @@ out_folder = 'out_datasets'
 # <out_file>_<n_subjs>_...     NEED TO ASK OPINIONS
 out_file = 'fakedata'
 
+# The default `slow_factor` to be passed to the `sigmoid` function. When this
+# value is big, the divergence will happen slowly, from the divergence point on.
+# When this value is small, the divergence will be fast.
+# BUT NOTE: this value should probably be a bit bigger than the sum of the other
+# `dspeed` biases. Take a look at the `sigmoid` function for more details.
+#
+# TODO: Should this be inside `params`, so that we can create datasets with
+#       varying dspeed values? (if you eventually change this, add it to the
+#       `out_file_name` variable)
+dspeed_slow_factor = 50
+
+# Whether we should try to force the divergence point of condition 0 to be *EXACTLY*
+# at `args.dpoint`
+force_divergence_point = True
+
 params = {
     ###################
     # Variables about the datasets as a whole
@@ -220,6 +235,7 @@ def run_fake_data_generator(params, d_idx, seed):
         "--n_trials", str(params['n_trials']),
         "--trial_len", str(params['trial_len']),
         "--dpoint", str(params['dpoint']),
+        "--dspeed_slow_factor", str(dspeed_slow_factor),
         "--cond_effect", str(params['cond_effect']),
         "--rand_dp_noise_sd", str(params['rand_dp_noise_sd']),
         "--rand_prob_noise_sd", str(params['rand_prob_noise_sd']),
@@ -238,6 +254,8 @@ def run_fake_data_generator(params, d_idx, seed):
         run_args.append("--dump_per_trial_fixation_stats")
     if params['dump_overall_fixation_stats']:
         run_args.append("--dump_overall_fixation_stats")
+    if force_divergence_point:
+        run_args.append("--force_dpoint")
 
     subprocess.run(run_args)
 
