@@ -1,7 +1,6 @@
 # Generate fake data for Divergence Point Analysis
 
 # Imports that produce dependencies
-#import numpy as np     # requires `pip install numpy`
 import pandas as pd    # requires `pip install pandas`
 
 # Python native imports
@@ -10,11 +9,17 @@ import math
 import argparse
 import random
 
-PRETRIAL_BUFFER = 1000
-POSTTRIAL_BUFFER = 400
+WARNINGS_ON = True           # If false, deactivate all warnings
 
-FIXATION_LEN_MU = 215     # Fixations should be between 180 and 250. 215 is the
-FIXATION_LEN_SD = 35      # midpoint, and 215-35=180, and 215+35=250
+PRETRIAL_BUFFER = 1000
+POSTTRIAL_BUFFER = 500
+
+DPA_DISTANCE = 200           # How many consecutive ttests need to be significant
+                             # for us to decide we found a divergence
+TTEST_SIGNIFICANCE = 1.96
+
+FIXATION_LEN_MU = 215        # Fixations should be between 180 and 250. 215 is the
+FIXATION_LEN_SD = 35         # midpoint, and 215-35=180, and 215+35=250
 
 
 all_fixation_lengths = []                               # for stats
@@ -45,6 +50,14 @@ def parse_command_line():
                            type=int,
                            default=300,
                            help='The divergence point for condition 0 (in ms).')
+
+    argparser.add_argument('--dspeed_slow_factor',
+                           metavar='dspeed_slow_factor',
+                           type=float,
+                           default=50,
+                           help='The `slow_factor` of the sigmoid() function. '
+                                'Ideally, this value should be bigger than the sum '
+                                'of all the other `dspeed`-related values.')
 
     argparser.add_argument('--n_conds', metavar='n_conds',
                            type=int,
@@ -85,7 +98,7 @@ def parse_command_line():
     argparser.add_argument('--rand_prob_noise_sd',
                            metavar='rand_prob_noise_sd',
                            type=float,
-                           default=0.5,
+                           default=0.1,
                            help='Every trial is just slightly (and randomly) biased '
                                 'towards one or the other image. This defines the SD '
                                 '(in probability) of this variability.')
@@ -118,7 +131,7 @@ def parse_command_line():
     argparser.add_argument('--subj_per_trial_bias_var_sd',
                            metavar='subj_per_trial_bias_var_sd',
                            type=float,
-                           default=0.5,
+                           default=0.1,
                            help='The variability SD, per trial, of the participant '
                                 'bias towards one or the other image. (some participants '
                                 'vary more, some vary less.)')
@@ -157,7 +170,7 @@ def parse_command_line():
     argparser.add_argument('--subj_bias_var_sd',
                            metavar='subj_bias_var_sd',
                            type=float,
-                           default=0.5,
+                           default=0.1,
                            help='The variability of a per-participant bias '
                                 '(in probability) of looking towards one or the '
                                 'other image.')
@@ -220,6 +233,15 @@ def parse_command_line():
                            type=str, default=None,
                            help='File to be produced with the data')
 
+    argparser.add_argument('--force_dpoint',
+                           default=False,
+                           action='store_true',
+                           help='(Requires library scipy) If set, the generated '
+                                'datasets will go through a simple DPA, and the '
+                                'trials will be "shifted" so that the overall '
+                                'DPA of the dataset is exactly at `dpoint`. '
+                                '(this is much slower.)')
+
 
 
     argparser.add_argument('--dump_per_trial_fixation_stats',
@@ -245,7 +267,10 @@ def parse_command_line():
 
     return argparser.parse_args()
 
-def sigmoid(x, slow_factor=50, rand_effect=0.):
+
+#####################################
+
+def sigmoid(x, slow_factor, rand_effect):
     # This is:
     #              (version A)    (version B)
     #                   x
@@ -259,7 +284,27 @@ def sigmoid(x, slow_factor=50, rand_effect=0.):
     # According to https://stackoverflow.com/a/64717799 , the version A is
     # numerically stable when x<0, and the version B is numerically stable when
     # x>0. Since my x is always positive, I will use only version B
-    return 1 / (1 + math.e ** (-x/(slow_factor+rand_effect)))
+    divisor = slow_factor + sum(rand_effect)
+    if divisor <= 0:
+        if (x == 0 and      # We say this only once per trial (this is a hack)...
+           WARNINGS_ON):   # ... and only if warnings are on (by default, they are)
+            print("*-*-*-*-*")
+            print("WARNING: SIGMOID'S `DIVISOR` IS NEGATIVE.")
+            print("You probably want to either increase `args.dspeed_slow_factor` or "
+                  "decrease the other `dspeed` parameters.")
+            print("  args.dspeed_slow_factor: ", slow_factor)
+            print("  random_dspeed_noise: ", rand_effect[0])
+            print("  subj_per_trial_dspeed_var: ", rand_effect[1])
+            print("  subj_dspeed_bias: ", rand_effect[2])
+            print("  item_dspeed_bias: ", rand_effect[3])
+            print("For now, we'll a different sigmoid that *is* numerically stable.")
+            print("*-*-*-*-*")
+        # This is probably not what we want. Not only for numerical stability,
+        # but also because we probably don't want a super fast divergence (as we'd
+        # get when the divisor is negative). Still, to prevent crashing, let's use
+        # the sigmoid "Version A", which is numerically stable in this case.
+        return (math.e ** (x/divisor)) / (1 + math.e ** (x/divisor))
+    return 1 / (1 + math.e ** (-x/divisor))
 
 def get_look_probs(trial_len,
                    pretrial_buffer,
@@ -300,8 +345,9 @@ def get_look_probs(trial_len,
     return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(divergence_moment)]
             +
-            [sigmoid(i, rand_effect=random_dspeed_noise + subj_per_trial_dspeed_var +
-                                    subj_dspeed_bias + item_dspeed_bias) +
+            [sigmoid(i, slow_factor=args.dspeed_slow_factor,
+                     rand_effect=[random_dspeed_noise, subj_per_trial_dspeed_var,
+                                     subj_dspeed_bias, item_dspeed_bias]) +
              random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
              for i in range(trial_len-divergence_moment)])
 
@@ -361,8 +407,12 @@ def generate_trial_data(subj_id,
                         item_dpoint_bias,
                         item_dspeed_bias,
                         args):
+    # We only care use `POSTTRIAL_BUFFER` if `force_dpoint` is set
+    posttrial_buffer = POSTTRIAL_BUFFER if args.force_dpoint else 0
+
     prob = get_look_probs(
-        args.trial_len + PRETRIAL_BUFFER, PRETRIAL_BUFFER,
+        args.trial_len + PRETRIAL_BUFFER + posttrial_buffer,
+        PRETRIAL_BUFFER,
         cond,
         subj_per_trial_dp_var_sd,
         subj_per_trial_bias_var_sd,
@@ -379,7 +429,7 @@ def generate_trial_data(subj_id,
     # The additional time (PRETRIAL_BUFFER) is so that we can treat better
     # the trial beginning
     looks = []
-    events = get_events(args.trial_len + PRETRIAL_BUFFER)
+    events = get_events(args.trial_len + PRETRIAL_BUFFER + posttrial_buffer)
     curr_looking_at = random.random() < prob[0]
     for ms, e in enumerate(events):
         if e:
@@ -466,6 +516,7 @@ def generate_data(args):
 
     return pd.concat(all_data, axis=0)
 
+#####################################
 
 def per_trial_fixation_stats():
     maxes = []
@@ -528,7 +579,79 @@ def overall_fixation_stats(out_folder):
         f.write("{}, {}, {}, {}, {}".format(max_f, min_f, mean_f, median_f, sd_f))
     p.save(os.path.join(out_folder, 'histogram_fixation.svg'))
 
+#####################################
 
+def run_ttests(df):
+    # For the calculations below, we will only consider the looks to the Target
+    no_distractor = df.loc[df['object'] != 'Distractor']
+    no_distractor_nor_aways = no_distractor.loc[no_distractor['object'] != 'Away']
+
+    # This will give us the mean `looks` for each combination of
+    # (participant, time, condition)
+    per_ms_looks = no_distractor_nor_aways.groupby(['participant', 'time', 'condition']).apply(
+        lambda x: x['is_looking'].mean())
+
+    # `per_ms_looks` is a Series, which I dislike. Let's make it a Data Frame
+    per_ms_looks_df = pd.DataFrame({'participant': per_ms_looks.index.get_level_values(0),
+                                    'time': per_ms_looks.index.get_level_values(1),
+                                    'condition': per_ms_looks.index.get_level_values(2),
+                                    'mean_looks': per_ms_looks.values})
+
+    # Now we calculate, for each pair (time, condition), the t-test over all participant means
+    ttests = per_ms_looks_df.groupby(['time', 'condition']).apply(
+        lambda x: stats.ttest_1samp(x['mean_looks'],
+                                    popmean=0.5).statistic)
+
+    # `ttests` is a Series, which I dislike. Let's make it a Data Frame
+    ttests_df = pd.DataFrame({'time': ttests.index.get_level_values(0),
+                              'condition': ttests.index.get_level_values(1),
+                              'tvalue': ttests.values})
+
+    return ttests_df
+
+def find_divergence_point(ttests_df):
+    # Ok... I did calculate the ttests for all conditions; and it may be useful
+    # in the future; BUT...
+    # I only need the condition 0 for my purposes here.
+    ttests_only_cond0 = ttests_df.loc[ttests_df['condition'] == 0]
+
+    condition_count = 0
+    divergence_point = None
+    for index, row in ttests_df.iterrows():
+        cond = row['condition']
+        if cond != 0:
+            continue
+
+        if row['tvalue'] > TTEST_SIGNIFICANCE:
+            condition_count += 1
+        else:
+            condition_count = 0
+
+        if condition_count >= DPA_DISTANCE:
+            divergence_point = row['time'] - DPA_DISTANCE
+            break
+
+    return divergence_point
+
+def run_ttests_and_trim(df, args):
+    ttests_df = run_ttests(df)
+    actual_divergence_point = find_divergence_point(ttests_df)
+
+    # This is how much we want to trim the beginning of every trial in the dataset
+    # (note the order of the calculation. Typically, the `actual_divergence_point`
+    # will be *after* `args.point`)
+    time_is_off_by = actual_divergence_point - args.dpoint
+
+    # Shift the trial by the calculated offset
+    df['time'] -= time_is_off_by
+
+    # Trim any `ms` that is below 0 or above the user-defined trial length
+    df = df.loc[df['time'] >= 0]
+    df = df.loc[df['time'] < args.trial_len]
+    return df
+
+
+#####################################
 
 
 if __name__ == '__main__':
@@ -542,6 +665,12 @@ if __name__ == '__main__':
 
     print("Generating data...")
     out_df = generate_data(args)
+
+    if args.force_dpoint:
+        from scipy import stats
+        print("Calculating t-tests and forcing divergence point...")
+        out_df = run_ttests_and_trim(out_df, args)
+
     print("Dumping into output file...")
     out_df.to_csv(args.out_file)
 
