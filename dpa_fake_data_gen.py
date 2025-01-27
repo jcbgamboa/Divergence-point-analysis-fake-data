@@ -25,6 +25,7 @@ FIXATION_LEN_SD = 35         # midpoint, and 215-35=180, and 215+35=250
 all_fixation_lengths = []                               # for stats
 item_dpoint_biases = {}
 item_dspeed_biases = {}
+item_prob_biases = {}
 
 def parse_command_line():
     description = ''
@@ -211,6 +212,16 @@ def parse_command_line():
                            help="The variability (in ms) of the random intercept of "
                                 "items' divergence point.")
 
+    argparser.add_argument('--item_prob_bias_sd',
+                           metavar='item_prob_bias_sd',
+                           type=float,
+                           default=0.1,
+                           help="The variability (in prob) of the random intercept of "
+                                "items' target probability. (i.e., for each item, one "
+                                "of the two images may be more salient and call more "
+                                "attention than the other, and this may vary randomly)")
+
+
     argparser.add_argument('--item_dspeed_bias_sd',
                            metavar='item_dspeed_bias_sd',
                            type=float,
@@ -317,6 +328,7 @@ def get_look_probs(trial_len,
                    subj_dpoint_random_intercept,
                    subj_dpoint_random_slope,
                    item_dpoint_bias,
+                   item_prob_bias,
                    item_dspeed_bias,
                    args):
     condition_fixed_effect = cond * (args.cond_effect + subj_dpoint_random_slope)
@@ -342,13 +354,13 @@ def get_look_probs(trial_len,
     #      subj_per_trial_dp_var_sd,
     #      subj_per_trial_dp_var, divergence_moment)
 
-    return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
-             for i in range(divergence_moment)]
+    return ([0.5 + random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj + item_prob_bias
+            for i in range(divergence_moment)]
             +
             [sigmoid(i, slow_factor=args.dspeed_slow_factor,
                      rand_effect=[random_dspeed_noise, subj_per_trial_dspeed_var,
                                      subj_dspeed_bias, item_dspeed_bias]) +
-             random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj
+                 random_prob_noise + subj_per_trial_bias_var + subj_bias_toward_obj + item_prob_bias
              for i in range(trial_len-divergence_moment)])
 
 
@@ -405,6 +417,7 @@ def generate_trial_data(subj_id,
                         subj_dpoint_random_intercept,
                         subj_dpoint_random_slope,
                         item_dpoint_bias,
+                        item_prob_bias,
                         item_dspeed_bias,
                         args):
     # We only care use `POSTTRIAL_BUFFER` if `force_dpoint` is set
@@ -422,6 +435,7 @@ def generate_trial_data(subj_id,
         subj_dpoint_random_intercept,
         subj_dpoint_random_slope,
         item_dpoint_bias,
+        item_prob_bias,
         item_dspeed_bias,
         args
     )
@@ -455,6 +469,13 @@ def get_item_dspeed_bias(cond, trial):
         item_dspeed_biases[(cond, trial)] = int(random.gauss(mu=0, sigma=args.item_dspeed_bias_sd))
     return item_dspeed_biases[(cond, trial)]
 
+def get_item_prob_bias(cond, trial):
+    if (cond, trial) not in item_prob_biases:
+        item_prob_biases[(cond, trial)] = int(random.gauss(mu=0, sigma=args.item_prob_bias_sd))
+    return item_prob_biases[(cond, trial)]
+
+
+
 def generate_subj_data(subj_id, args):
     n_conditions = args.n_conds
 
@@ -480,10 +501,9 @@ def generate_subj_data(subj_id, args):
         for trial in range(args.n_trials):
             trial_id = "T" + str(trial)
 
-            #item_dpoint_bias = get_item_dpoint_bias(cond, trial)
-            #item_dspeed_bias = get_item_dspeed_bias(cond, trial)
-            item_dpoint_bias = 0
-            item_dspeed_bias = 0
+            item_dpoint_bias = get_item_dpoint_bias(cond, trial)
+            item_prob_bias = get_item_prob_bias(cond, trial)
+            item_dspeed_bias = get_item_dspeed_bias(cond, trial)
 
             subj_trials.append(
                 generate_trial_data(
@@ -499,6 +519,7 @@ def generate_subj_data(subj_id, args):
                     subj_dpoint_random_intercept,
                     subj_dpoint_random_slope,
                     item_dpoint_bias,
+                    item_prob_bias,
                     item_dspeed_bias,
                     args)
             )

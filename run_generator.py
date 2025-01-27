@@ -60,9 +60,9 @@ params = {
 
     # The effect of each condition. For example, if the divergence point is 300 and
     # `cond_effect` is 100, then:
-    # In condition 0, the divergence point will be 300 *   0 = 300ms
-    # In condition 1, the divergence point will be 300 * 100 = 400ms
-    # In condition 2, the divergence point will be 300 * 200 = 500ms
+    # In condition 0, the divergence point will be 300 + (0 * 100) = 300ms
+    # In condition 1, the divergence point will be 300 + (1 * 100) = 400ms
+    # In condition 2, the divergence point will be 300 + (2 * 100) = 500ms
     # ...
     'cond_effect' : [50, 100, 150],
 
@@ -155,10 +155,17 @@ params = {
     # N(mean=0, sd=variable) and use the sampled value directly to influence
     # something.
 
-    # The per item bias towards one of the images.
+    # The per item variability on the divergence point.
     # The value sampled from the normal distribution will be summed to the
     # divergence point
     'item_dpoint_bias_sd' : [50],
+
+    # The per item bias towards one of the other images.
+    # This bias models the situation where one of the images of a given item
+    # is more "salient" than the other.
+    # The value sampled from the normal distribution will be summed to the
+    # probability of looks to the target.
+    'item_prob_bias_sd': [0.1],
 
     # The per item bias on the "divergence speed". The idea is that some items
     # will lead participants to diverge faster than others.
@@ -223,6 +230,7 @@ def run_fake_data_generator(params, d_idx, seed):
                               'sdssd' + str(params['subj_dspeed_bias_var_sd']),
 
                               'idpsd' + str(params['item_dpoint_bias_sd']),
+                              'ipsd' + str(params['item_prob_bias_sd']),
                               'idssd' + str(params['item_dspeed_bias_sd']),
                               seed])
 
@@ -248,6 +256,7 @@ def run_fake_data_generator(params, d_idx, seed):
         "--subj_bias_var_sd", str(params['subj_bias_var_sd']),
         "--subj_dspeed_bias_var_sd", str(params['subj_dspeed_bias_var_sd']),
         "--item_dpoint_bias_sd", str(params['item_dpoint_bias_sd']),
+        "--item_prob_bias_sd", str(params['item_prob_bias_sd']),
         "--item_dspeed_bias_sd", str(params['item_dspeed_bias_sd']),
     ]
     if params['dump_per_trial_fixation_stats']:
