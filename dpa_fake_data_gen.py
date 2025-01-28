@@ -14,7 +14,12 @@ WARNINGS_ON = True           # If false, deactivate all warnings
 PRETRIAL_BUFFER = 1000
 POSTTRIAL_BUFFER = 500
 
-DPA_DISTANCE = 200           # How many consecutive ttests need to be significant
+PRETRIAL_BUFFER_MARGIN = 300
+
+POPULATION_SIZE_MULTIPLIER = 20
+
+# How many consecutive ttests need to be significant
+DPA_DISTANCE = 200
                              # for us to decide we found a divergence
 TTEST_SIGNIFICANCE = 1.96
 
@@ -32,7 +37,7 @@ def parse_command_line():
     argparser = argparse.ArgumentParser(description=description)
     argparser.add_argument('--n_subjs', metavar='n_subjs',
                            type=int,
-                           default=50,
+                           default=10,
                            help='Number of participants to be generated')
 
     argparser.add_argument('--n_trials', metavar='n_trials',
@@ -245,7 +250,7 @@ def parse_command_line():
                            help='File to be produced with the data')
 
     argparser.add_argument('--force_dpoint',
-                           default=False,
+                           default=True,
                            action='store_true',
                            help='(Requires library scipy) If set, the generated '
                                 'datasets will go through a simple DPA, and the '
@@ -383,9 +388,14 @@ def get_events(trial_len):
     all_fixation_lengths.append(fixation_lengths)
     return events
 
-def create_dataframe(looks, subj_id, trial_id, cond):
+def create_dataframe(looks, subj_id, trial_id, cond, args):
     data = []
-    for idx,i in enumerate(looks):
+
+    # If `args.force_dpoint` is set, we don't "trim" completely the
+    # beginning of the trial
+    trim_point = PRETRIAL_BUFFER - PRETRIAL_BUFFER_MARGIN if args.force_dpoint else PRETRIAL_BUFFER
+
+    for idx,i in enumerate(looks[trim_point:]):
         looking_target = True if i == 'Target' else False
         looking_distractor = True if i == 'Distractor' else False
 
@@ -402,6 +412,10 @@ def create_dataframe(looks, subj_id, trial_id, cond):
         'object': objs,
         'is_looking': is_looking
     })
+
+    if args.force_dpoint:
+        trial_data['time'] -= PRETRIAL_BUFFER_MARGIN
+
     return trial_data
 
 
@@ -455,7 +469,7 @@ def generate_trial_data(subj_id,
                 curr_looking_at = 'Target' if random.random() < prob[ms] else 'Distractor'
         looks.append(curr_looking_at)
 
-    trial_data = create_dataframe(looks[PRETRIAL_BUFFER:], subj_id, trial_id, cond)
+    trial_data = create_dataframe(looks, subj_id, trial_id, cond, args)
 
     return trial_data
 
@@ -527,9 +541,12 @@ def generate_subj_data(subj_id, args):
 
 
 def generate_data(args):
+    # If we want to `force_dpoint`, then we'll produce MANY MORE participants
+    n_subjects = args.n_subjs if not args.force_dpoint else args.n_subjs*POPULATION_SIZE_MULTIPLIER
+
     # `all_data` is a list of data frames
     all_data = []
-    for subj in range(args.n_subjs):
+    for subj in range(n_subjects):
         subj_id = "P" + str(subj)
         # Define other variables
         subj_trials = generate_subj_data(subj_id, args)
@@ -631,40 +648,63 @@ def run_ttests(df):
     return ttests_df
 
 def find_divergence_point(ttests_df):
-    # Ok... I did calculate the ttests for all conditions; and it may be useful
-    # in the future; BUT...
-    # I only need the condition 0 for my purposes here.
-    ttests_only_cond0 = ttests_df.loc[ttests_df['condition'] == 0]
+    # Ok... I had calculated the t-tests for all conditions.
+    # Now I just need to find, for each condition, to find the divergence point
 
-    condition_count = 0
-    divergence_point = None
-    for index, row in ttests_df.iterrows():
-        cond = row['condition']
-        if cond != 0:
-            continue
+    # Get all conditions
+    all_conditions = ttests_df['condition'].unique()
+    divergence_points = {}
+    for i in all_conditions:
+        ttests_of_cond_i = ttests_df.loc[ttests_df['condition'] == i]
 
-        if row['tvalue'] > TTEST_SIGNIFICANCE:
-            condition_count += 1
-        else:
-            condition_count = 0
+        condition_count = 0
+        divergence_points[i] = None
+        for index, row in ttests_of_cond_i.iterrows():
+            if row['tvalue'] > TTEST_SIGNIFICANCE:
+                condition_count += 1
+            else:
+                condition_count = 0
 
-        if condition_count >= DPA_DISTANCE:
-            divergence_point = row['time'] - DPA_DISTANCE
-            break
+            if condition_count >= DPA_DISTANCE:
+                divergence_points[i] = row['time'] - DPA_DISTANCE
+                break
 
-    return divergence_point
+        # We should ALWAYS find a divergence point
+        assert(divergence_points[i] is not None)
+    return divergence_points
 
 def run_ttests_and_trim(df, args):
+    print("... will run t-tests...")
     ttests_df = run_ttests(df)
-    actual_divergence_point = find_divergence_point(ttests_df)
+    print("... will use the t-tests to find divergence points...")
+    actual_divergence_points = find_divergence_point(ttests_df)
 
-    # This is how much we want to trim the beginning of every trial in the dataset
-    # (note the order of the calculation. Typically, the `actual_divergence_point`
-    # will be *after* `args.point`)
-    time_is_off_by = actual_divergence_point - args.dpoint
+    # "Trim" the number of participants, so that we only have
+    # `args.n_subjects` participants
+    print("... will sample the participants from the population...")
+    participants_to_keep = random.sample(list(df['participant'].unique()), args.n_subjs)
+    df = df.loc[df['participant'].isin(participants_to_keep)].copy()
 
-    # Shift the trial by the calculated offset
-    df['time'] -= time_is_off_by
+    print("... will trim the trials to have the correct length...")
+    for cond, actual_dpoint in actual_divergence_points.items():
+        # This is how much we want to trim the beginning of every trial in the dataset
+        # (note the order of the calculation. Typically, the `actual_divergence_point`
+        # will be *after* `args.point`)
+        time_is_off_by = actual_dpoint - (args.dpoint + cond*args.cond_effect)
+
+        # Shift the trials by the calculated offset
+        df.loc[df['condition'] == cond, 'time'] -= time_is_off_by
+
+        #     ... subset the df to get only condition k...
+        #
+        #     time_is_off_by = v - args.dpoint
+        #
+        #     # Shift the trials by the calculated offset
+        #     df['time'] -= time_is_off_by
+        #
+        #     # Trim any `ms` that is below 0 or above the user-defined trial length
+        #     df = df.loc[df['time'] >= 0]
+        #     df = df.loc[df['time'] < args.trial_len]
 
     # Trim any `ms` that is below 0 or above the user-defined trial length
     df = df.loc[df['time'] >= 0]

@@ -10,7 +10,7 @@ import string
 # General variables
 
 # Number of datasets per parameter set
-n_datasets_per_paramset = 3
+n_datasets_per_paramset = 1
 
 # The random seed (this can be any number. It will be used to generate random
 # seeds for the generated datasets)
@@ -79,12 +79,12 @@ params = {
     # The standard deviation of the random noise of the divergence point.
     # Every trial, we sample from the normal distribution and sum the sampled
     # value to the divergence point
-    'rand_dp_noise_sd' : [20, 50],
+    'rand_dp_noise_sd' : [50],
 
     # The standard deviation of the random noise of the probability.
     # Every trial, we sample from the normal distribution and sum it to the
     # probability of looking to the target
-    'rand_prob_noise_sd' : [0.1, 0.2],
+    'rand_prob_noise_sd' : [0.1],
 
     # The standard deviation of the random noise of the "divergence speed".
     # Every trial, we sample from the normal distribution and use this number to
