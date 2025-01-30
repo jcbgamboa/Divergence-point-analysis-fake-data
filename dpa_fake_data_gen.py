@@ -12,11 +12,9 @@ import random
 WARNINGS_ON = True           # If false, deactivate all warnings
 
 PRETRIAL_BUFFER = 1000
-POSTTRIAL_BUFFER = 500
+POSTTRIAL_BUFFER = 250
 
-PRETRIAL_BUFFER_MARGIN = 300
-
-POPULATION_SIZE_MULTIPLIER = 20
+PRETRIAL_BUFFER_MARGIN = 250
 
 # How many consecutive ttests need to be significant
 DPA_DISTANCE = 200
@@ -28,6 +26,7 @@ FIXATION_LEN_SD = 35         # midpoint, and 215-35=180, and 215+35=250
 
 
 all_fixation_lengths = []                               # for stats
+all_subjs_per_ms_looks = []                             # for `force_dpoint_me`
 item_dpoint_biases = {}
 item_dspeed_biases = {}
 item_prob_biases = {}
@@ -249,14 +248,38 @@ def parse_command_line():
                            type=str, default=None,
                            help='File to be produced with the data')
 
-    argparser.add_argument('--force_dpoint',
-                           default=True,
+    group = argparser.add_mutually_exclusive_group()
+
+    group.add_argument('--force_dpoint',
+                           default=False,
                            action='store_true',
                            help='(Requires library scipy) If set, the generated '
-                                'datasets will go through a simple DPA, and the '
-                                'trials will be "shifted" so that the overall '
-                                'DPA of the dataset is exactly at `dpoint`. '
-                                '(this is much slower.)')
+                                'datasets will generate a much larger population, '
+                                'go through a simple DPA on that population, and '
+                                'then use the divergence point found to "shift" '
+                                'the trials so that the population DPA is exactly '
+                                '"where it should be", i.e., at `dpoint` for '
+                                'condition 0, at `dpoint + cond_effect` at '
+                                'condition 1, etc. Then it will sample `n_subjs` '
+                                'from that population. (this is much slower and '
+                                'requires MUCH MORE memory)')
+
+    group.add_argument('--force_dpoint_me',
+                           default=False,
+                           action='store_true',
+                           help='(Requires library scipy) A memory efficient '
+                                'version of the `force_dpoint` flag.')
+
+
+    argparser.add_argument('--pop_multiplier',
+                           metavar='pop_multiplier',
+                           type=int,
+                           default=5,
+                           help='When `force_dpoint` is set, this number is '
+                                'multiplied by `n_subjs` to define the '
+                                'population size. Larger numbers will require '
+                                'more memory.')
+
 
 
 
@@ -393,7 +416,9 @@ def create_dataframe(looks, subj_id, trial_id, cond, args):
 
     # If `args.force_dpoint` is set, we don't "trim" completely the
     # beginning of the trial
-    trim_point = PRETRIAL_BUFFER - PRETRIAL_BUFFER_MARGIN if args.force_dpoint else PRETRIAL_BUFFER
+    trim_point = PRETRIAL_BUFFER - PRETRIAL_BUFFER_MARGIN \
+                    if args.force_dpoint or args.force_dpoint_me \
+                    else PRETRIAL_BUFFER
 
     for idx,i in enumerate(looks[trim_point:]):
         looking_target = True if i == 'Target' else False
@@ -413,7 +438,7 @@ def create_dataframe(looks, subj_id, trial_id, cond, args):
         'is_looking': is_looking
     })
 
-    if args.force_dpoint:
+    if args.force_dpoint or args.force_dpoint_me:
         trial_data['time'] -= PRETRIAL_BUFFER_MARGIN
 
     return trial_data
@@ -435,7 +460,9 @@ def generate_trial_data(subj_id,
                         item_dspeed_bias,
                         args):
     # We only care use `POSTTRIAL_BUFFER` if `force_dpoint` is set
-    posttrial_buffer = POSTTRIAL_BUFFER if args.force_dpoint else 0
+    posttrial_buffer = POSTTRIAL_BUFFER \
+                        if args.force_dpoint or args.force_dpoint_me \
+                        else 0
 
     prob = get_look_probs(
         args.trial_len + PRETRIAL_BUFFER + posttrial_buffer,
@@ -541,15 +568,34 @@ def generate_subj_data(subj_id, args):
 
 
 def generate_data(args):
-    # If we want to `force_dpoint`, then we'll produce MANY MORE participants
-    n_subjects = args.n_subjs if not args.force_dpoint else args.n_subjs*POPULATION_SIZE_MULTIPLIER
+    n_subjects = args.n_subjs * args.pop_multiplier
+    print(" * will produce", n_subjects, "participants", end='')
+
+    if args.force_dpoint_me:
+        selected_participants = random.sample(range(n_subjects), args.n_subjs)
 
     # `all_data` is a list of data frames
     all_data = []
     for subj in range(n_subjects):
+        # Some quality of life:
+        # Will show a dot per participant, and the value of `subj` every 50 dots
+        print('.', end='')
+        if subj > 0 and subj % 50 == 0:
+            print(subj, end='')
+
         subj_id = "P" + str(subj)
         # Define other variables
         subj_trials = generate_subj_data(subj_id, args)
+
+        if args.force_dpoint_me:
+            subj_per_ms_looks = get_per_ms_looks(pd.concat(subj_trials, axis=0))
+            all_subjs_per_ms_looks.append(subj_per_ms_looks)
+            del subj_per_ms_looks
+
+            if subj not in selected_participants:
+                del subj_trials
+                continue
+
         all_data.extend(subj_trials)
 
     return pd.concat(all_data, axis=0)
@@ -619,10 +665,11 @@ def overall_fixation_stats(out_folder):
 
 #####################################
 
-def run_ttests(df):
+def get_per_ms_looks(df):
     # For the calculations below, we will only consider the looks to the Target
     no_distractor = df.loc[df['object'] != 'Distractor']
     no_distractor_nor_aways = no_distractor.loc[no_distractor['object'] != 'Away']
+    del no_distractor
 
     # This will give us the mean `looks` for each combination of
     # (participant, time, condition)
@@ -634,11 +681,20 @@ def run_ttests(df):
                                     'time': per_ms_looks.index.get_level_values(1),
                                     'condition': per_ms_looks.index.get_level_values(2),
                                     'mean_looks': per_ms_looks.values})
+    del per_ms_looks
+    return per_ms_looks_df
+
+
+def run_ttests(df, args):
+    per_ms_looks_df = pd.concat(all_subjs_per_ms_looks, axis=0) \
+                        if args.force_dpoint_me \
+                        else get_per_ms_looks(df)
 
     # Now we calculate, for each pair (time, condition), the t-test over all participant means
     ttests = per_ms_looks_df.groupby(['time', 'condition']).apply(
         lambda x: stats.ttest_1samp(x['mean_looks'],
                                     popmean=0.5).statistic)
+    del per_ms_looks_df
 
     # `ttests` is a Series, which I dislike. Let's make it a Data Frame
     ttests_df = pd.DataFrame({'time': ttests.index.get_level_values(0),
@@ -667,6 +723,7 @@ def find_divergence_point(ttests_df):
 
             if condition_count >= DPA_DISTANCE:
                 divergence_points[i] = row['time'] - DPA_DISTANCE
+                del ttests_of_cond_i
                 break
 
         # We should ALWAYS find a divergence point
@@ -674,18 +731,23 @@ def find_divergence_point(ttests_df):
     return divergence_points
 
 def run_ttests_and_trim(df, args):
-    print("... will run t-tests...")
-    ttests_df = run_ttests(df)
-    print("... will use the t-tests to find divergence points...")
+    # We'll be very "mindful" of memory here, because apparently this function is
+    # consuming WAY TOO MUCH memory =/
+
+    print(" * will run t-tests")
+    ttests_df = run_ttests(df, args)
+    print(" * will use the t-tests to find divergence points")
     actual_divergence_points = find_divergence_point(ttests_df)
+    del ttests_df
 
     # "Trim" the number of participants, so that we only have
     # `args.n_subjects` participants
-    print("... will sample the participants from the population...")
+    print(" * will sample the participants from the population")
     participants_to_keep = random.sample(list(df['participant'].unique()), args.n_subjs)
-    df = df.loc[df['participant'].isin(participants_to_keep)].copy()
+    out_df = df.loc[df['participant'].isin(participants_to_keep)].copy()
+    del df
 
-    print("... will trim the trials to have the correct length...")
+    print(" * will trim the trials to have the correct length")
     for cond, actual_dpoint in actual_divergence_points.items():
         # This is how much we want to trim the beginning of every trial in the dataset
         # (note the order of the calculation. Typically, the `actual_divergence_point`
@@ -693,23 +755,12 @@ def run_ttests_and_trim(df, args):
         time_is_off_by = actual_dpoint - (args.dpoint + cond*args.cond_effect)
 
         # Shift the trials by the calculated offset
-        df.loc[df['condition'] == cond, 'time'] -= time_is_off_by
-
-        #     ... subset the df to get only condition k...
-        #
-        #     time_is_off_by = v - args.dpoint
-        #
-        #     # Shift the trials by the calculated offset
-        #     df['time'] -= time_is_off_by
-        #
-        #     # Trim any `ms` that is below 0 or above the user-defined trial length
-        #     df = df.loc[df['time'] >= 0]
-        #     df = df.loc[df['time'] < args.trial_len]
+        out_df.loc[out_df['condition'] == cond, 'time'] -= time_is_off_by
 
     # Trim any `ms` that is below 0 or above the user-defined trial length
-    df = df.loc[df['time'] >= 0]
-    df = df.loc[df['time'] < args.trial_len]
-    return df
+    out_df = out_df.loc[out_df['time'] >= 0]
+    out_df = out_df.loc[out_df['time'] < args.trial_len]
+    return out_df
 
 
 #####################################
@@ -717,38 +768,45 @@ def run_ttests_and_trim(df, args):
 
 if __name__ == '__main__':
     # Tests the functionalities of this file
-    print("Parsing command line...")
+    print("Parsing command line")
     args = parse_command_line()
 
+    if not args.force_dpoint and not args.force_dpoint_me:
+        # This will make the code produce many more participants
+        # (which is necessary for `force_dpoint[_me]`
+        args.pop_multiplier = 1
+
+    print(args)
+
     if args.rand_seed is not None:
-        print('Received random seed. Setting it...')
+        print('Received random seed. Setting it')
         random.seed(args.rand_seed)
 
-    print("Generating data...")
+    print("Generating data")
     out_df = generate_data(args)
 
-    if args.force_dpoint:
+    if args.force_dpoint or args.force_dpoint_me:
         from scipy import stats
-        print("Calculating t-tests and forcing divergence point...")
+        print("Calculating t-tests and forcing divergence point")
         out_df = run_ttests_and_trim(out_df, args)
 
-    print("Dumping into output file...")
+    print("Dumping into output file")
     out_df.to_csv(args.out_file)
 
     if args.dump_per_trial_fixation_stats:
         import statistics as s
-        print("Calculating per trial fixation stats...")
+        print("Calculating per trial fixation stats")
         stats = per_trial_fixation_stats()
-        print("Dumping per trial fixation stats...")
+        print("Dumping per trial fixation stats")
         stats.to_csv('per_trial_fixation_stats.csv')
         #print(stats)
 
     if args.dump_overall_fixation_stats:
         import statistics as s
         from plotnine import *
-        print("Calculating overall fixation stats...")
+        print("Calculating overall fixation stats")
         stats = overall_fixation_stats('fixation_stats')
-        print("Dumping per trial fixation stats...")
+        print("Dumping per trial fixation stats")
 
     print("Done")
 

@@ -10,7 +10,7 @@ import string
 # General variables
 
 # Number of datasets per parameter set
-n_datasets_per_paramset = 1
+n_datasets_per_paramset = 2
 
 # The random seed (this can be any number. It will be used to generate random
 # seeds for the generated datasets)
@@ -36,7 +36,24 @@ dspeed_slow_factor = 50
 
 # Whether we should try to force the divergence point of condition 0 to be *EXACTLY*
 # at `args.dpoint`
-force_divergence_point = True
+# If this is set, the generator will produce a larger population,
+# perform a DPA on this larger population, and then shift the trials so that
+# the divergence point for condition 0 is *exactly* at the time `dpoint`,
+# the divergence point for condition 1 is *exactly* at the time `dpoint + cond_effect`,
+# and so on. Then, it will sample `n_subjs` from this population.
+# (this is mutually exclusive with `force_dp_memory_efficient`)
+force_divergence_point = False
+
+# A "memory efficient" version of the `force_divergence_point` algorithm.
+# (this is mutually exclusive with `force_divergence_point`)
+force_dp_memory_efficient = True
+
+# (Only useful if `force_dpoint` is set)
+# This will be used to define the size of the "larger population" in the
+# description of `force_divergence_point` above. It will have size:
+# `n_subjs * pop_multiplier`.
+population_multiplier = 20
+
 
 params = {
     ###################
@@ -56,7 +73,7 @@ params = {
 
     # The point in ms at which the probability of looks towards the target *start*
     # increasing
-    'dpoint' : [300],
+    'dpoint' : [300, 500],
 
     # The effect of each condition. For example, if the divergence point is 300 and
     # `cond_effect` is 100, then:
@@ -64,7 +81,7 @@ params = {
     # In condition 1, the divergence point will be 300 + (1 * 100) = 400ms
     # In condition 2, the divergence point will be 300 + (2 * 100) = 500ms
     # ...
-    'cond_effect' : [50, 100, 150],
+    'cond_effect' : [100, 200, 300],
 
     # If you want additional stats, set these to true
     'dump_per_trial_fixation_stats': [False],
@@ -258,6 +275,7 @@ def run_fake_data_generator(params, d_idx, seed):
         "--item_dpoint_bias_sd", str(params['item_dpoint_bias_sd']),
         "--item_prob_bias_sd", str(params['item_prob_bias_sd']),
         "--item_dspeed_bias_sd", str(params['item_dspeed_bias_sd']),
+        "--pop_multiplier", str(population_multiplier),
     ]
     if params['dump_per_trial_fixation_stats']:
         run_args.append("--dump_per_trial_fixation_stats")
@@ -265,6 +283,8 @@ def run_fake_data_generator(params, d_idx, seed):
         run_args.append("--dump_overall_fixation_stats")
     if force_divergence_point:
         run_args.append("--force_dpoint")
+    if force_dp_memory_efficient:
+        run_args.append("--force_dpoint_me")
 
     subprocess.run(run_args)
 
