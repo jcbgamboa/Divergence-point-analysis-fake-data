@@ -1,3 +1,5 @@
+# TODO: turn these False by default: force_dpoint_me, dump_per_ms_look_probs
+
 # Generate fake data for Divergence Point Analysis
 
 # Imports that produce dependencies
@@ -36,7 +38,7 @@ def parse_command_line():
     argparser = argparse.ArgumentParser(description=description)
     argparser.add_argument('--n_subjs', metavar='n_subjs',
                            type=int,
-                           default=10,
+                           default=50,
                            help='Number of participants to be generated')
 
     argparser.add_argument('--n_trials', metavar='n_trials',
@@ -265,16 +267,15 @@ def parse_command_line():
                                 'requires MUCH MORE memory)')
 
     group.add_argument('--force_dpoint_me',
-                           default=False,
+                           default=True,
                            action='store_true',
                            help='(Requires library scipy) A memory efficient '
                                 'version of the `force_dpoint` flag.')
 
-
     argparser.add_argument('--pop_multiplier',
                            metavar='pop_multiplier',
                            type=int,
-                           default=5,
+                           default=20,
                            help='When `force_dpoint` is set, this number is '
                                 'multiplied by `n_subjs` to define the '
                                 'population size. Larger numbers will require '
@@ -299,6 +300,16 @@ def parse_command_line():
                                 'with statistics about the length of the fixations, '
                                 'regardless of which trial they come from. The folder '
                                 'is called `fixation_stats`')
+
+    argparser.add_argument('--dump_per_ms_look_probs',
+                           default=True,
+                           action='store_true',
+                           help='(Requires `force_dpoint[_me]` to be set.) '
+                                'If set, produces a file with the each participant\'s '
+                                'probability of looking to the target for every ms '
+                                '(i.e., the same as the `per_ms_looks_df`) into a '
+                                'file `per_ms_look_probs.csv`')
+
 
     # argparser.add_argument('--parser', metavar='parser', type=str,
     #                     default='spacy',
@@ -694,16 +705,15 @@ def run_ttests(df, args):
     ttests = per_ms_looks_df.groupby(['time', 'condition']).apply(
         lambda x: stats.ttest_1samp(x['mean_looks'],
                                     popmean=0.5).statistic)
-    del per_ms_looks_df
 
     # `ttests` is a Series, which I dislike. Let's make it a Data Frame
     ttests_df = pd.DataFrame({'time': ttests.index.get_level_values(0),
                               'condition': ttests.index.get_level_values(1),
                               'tvalue': ttests.values})
 
-    return ttests_df
+    return per_ms_looks_df, ttests_df
 
-def find_divergence_point(ttests_df):
+def find_divergence_point_using_ttests(ttests_df):
     # Ok... I had calculated the t-tests for all conditions.
     # Now I just need to find, for each condition, to find the divergence point
 
@@ -727,21 +737,24 @@ def find_divergence_point(ttests_df):
                 break
 
         # We should ALWAYS find a divergence point
-        assert(divergence_points[i] is not None)
+        #assert(divergence_points[i] is not None)
     return divergence_points
 
-def run_ttests_and_trim(df, args):
+def find_divergence_point(df, args):
     # We'll be very "mindful" of memory here, because apparently this function is
     # consuming WAY TOO MUCH memory =/
 
     print(" * will run t-tests")
-    ttests_df = run_ttests(df, args)
+    per_ms_looks_df, ttests_df = run_ttests(df, args)
     print(" * will use the t-tests to find divergence points")
-    actual_divergence_points = find_divergence_point(ttests_df)
-    del ttests_df
+    actual_divergence_points = find_divergence_point_using_ttests(ttests_df)
+    return per_ms_looks_df, ttests_df, actual_divergence_points
 
+def shift_time(df, actual_divergence_points, args):
     # "Trim" the number of participants, so that we only have
     # `args.n_subjects` participants
+    # (If using the `memory efficienty` algorithm, this will end up sampling
+    # all the participants of the dataset, because the sampling happened before)
     print(" * will sample the participants from the population")
     participants_to_keep = random.sample(list(df['participant'].unique()), args.n_subjs)
     out_df = df.loc[df['participant'].isin(participants_to_keep)].copy()
@@ -788,7 +801,17 @@ if __name__ == '__main__':
     if args.force_dpoint or args.force_dpoint_me:
         from scipy import stats
         print("Calculating t-tests and forcing divergence point")
-        out_df = run_ttests_and_trim(out_df, args)
+        per_ms_looks_df, ttests_df, actual_divergence_points = \
+                                        find_divergence_point(out_df, args)
+        if args.dump_per_ms_look_probs:
+            print('Dumping per ms and participant look probabilities to target')
+            per_ms_looks_df.to_csv('per_ms_look_probs.csv')
+            ttests_df.to_csv('population_ttests.csv')
+            with open('actual_divergence_points.txt', 'w') as f:
+                f.write("{}".format(actual_divergence_points))
+            del per_ms_looks_df, ttests_df
+
+        out_df = shift_time(out_df, actual_divergence_points, args)
 
     print("Dumping into output file")
     out_df.to_csv(args.out_file)

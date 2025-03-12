@@ -10,7 +10,7 @@ import string
 # General variables
 
 # Number of datasets per parameter set
-n_datasets_per_paramset = 2
+n_datasets_per_paramset = 1
 
 # The random seed (this can be any number. It will be used to generate random
 # seeds for the generated datasets)
@@ -52,7 +52,7 @@ force_dp_memory_efficient = True
 # This will be used to define the size of the "larger population" in the
 # description of `force_divergence_point` above. It will have size:
 # `n_subjs * pop_multiplier`.
-population_multiplier = 20
+population_multiplier = 1
 
 
 params = {
@@ -60,20 +60,20 @@ params = {
     # Variables about the datasets as a whole
 
     # How many participants in each file
-    'n_subjs'          : [50],
+    'n_subjs'          : [40],
 
     # How many conditions each participant saw
     'n_conds'          : [2],
 
     # How many trials for each combination 'participant x condition' ?
-    'n_trials'         : [12],
+    'n_trials'         : [80],
 
     # The length of each trial in ms
     'trial_len'     : [1000],
 
     # The point in ms at which the probability of looks towards the target *start*
     # increasing
-    'dpoint' : [300, 500],
+    'dpoint' : [300],
 
     # The effect of each condition. For example, if the divergence point is 300 and
     # `cond_effect` is 100, then:
@@ -81,7 +81,7 @@ params = {
     # In condition 1, the divergence point will be 300 + (1 * 100) = 400ms
     # In condition 2, the divergence point will be 300 + (2 * 100) = 500ms
     # ...
-    'cond_effect' : [100, 200, 300],
+    'cond_effect' : [100, 200],
 
     # If you want additional stats, set these to true
     'dump_per_trial_fixation_stats': [False],
@@ -96,18 +96,18 @@ params = {
     # The standard deviation of the random noise of the divergence point.
     # Every trial, we sample from the normal distribution and sum the sampled
     # value to the divergence point
-    'rand_dp_noise_sd' : [50],
+    'rand_dp_noise_sd' : [10],
 
     # The standard deviation of the random noise of the probability.
     # Every trial, we sample from the normal distribution and sum it to the
     # probability of looking to the target
-    'rand_prob_noise_sd' : [0.1],
+    'rand_prob_noise_sd' : [0.01],
 
     # The standard deviation of the random noise of the "divergence speed".
     # Every trial, we sample from the normal distribution and use this number to
     # influence the function that determines how "fast" the looks diverge at the
     # divergence point
-    'rand_dspeed_noise_sd' : [5],
+    'rand_dspeed_noise_sd' : [2],
 
 
     ###################
@@ -122,18 +122,18 @@ params = {
     # The per trial per participant variability of the divergence point.
     # The value sampled from the "other" normal distribution (every trial)
     # will be summed to the divergence point
-    'subj_per_trial_dpoint_var_sd' : [10],
+    'subj_per_trial_dpoint_var_sd' : [7],
 
     # The per trial per participant variability of the participant bias.
     # The value sampled from the "other" normal distribution (every trial)
     # will be summed to the probability of looks to the target
-    'subj_per_trial_bias_var_sd'   : [0.1],
+    'subj_per_trial_bias_var_sd'   : [0.005],
 
     # The per trial per participant variability of the "divergence speed".
     # The value sampled from the "other" normal distribution (every trial)
     # will influence the function that determines how "fast" the looks diverge
     # at the divergence point
-    'subj_per_trial_dspeed_var_sd' : [5],
+    'subj_per_trial_dspeed_var_sd' : [2],
 
 
     ###################
@@ -145,23 +145,23 @@ params = {
     # The per participant random intercept of the divergence point.
     # The value sampled from the normal distribution will be summed to the
     # divergence point
-    'subj_dpoint_rand_intercept_sd' : [50],
+    'subj_dpoint_rand_intercept_sd' : [15],
 
     # The per participant random slope of the divergence point.
     # The value sampled from the normal distribution will be summed to
     # `cond_effect` before calculating the new divergence point.
-    'subj_dpoint_rand_slope_sd' : [50],
+    'subj_dpoint_rand_slope_sd' : [5],
 
     # The per participant bias towards one of the images.
     # The value sampled from the normal distribution will be summed to the
     # probability of looking to the target.
-    'subj_bias_var_sd' : [0.1],
+    'subj_bias_var_sd' : [0.05],
 
     # The per participant bias on the "divergence speed". The idea is that
     # some participants diverge faster than others.
     # The value sampled from the normal distribution will influence the function
     # that determines how "fast" the looks diverge at the divergence point
-    'subj_dspeed_bias_var_sd' : [5],
+    'subj_dspeed_bias_var_sd' : [4],
 
 
     ###################
@@ -175,20 +175,36 @@ params = {
     # The per item variability on the divergence point.
     # The value sampled from the normal distribution will be summed to the
     # divergence point
-    'item_dpoint_bias_sd' : [50],
+    'item_dpoint_bias_sd' : [15],
 
     # The per item bias towards one of the other images.
     # This bias models the situation where one of the images of a given item
     # is more "salient" than the other.
     # The value sampled from the normal distribution will be summed to the
     # probability of looks to the target.
-    'item_prob_bias_sd': [0.1],
+    'item_prob_bias_sd': [0.05],
 
     # The per item bias on the "divergence speed". The idea is that some items
     # will lead participants to diverge faster than others.
     # The value sampled from the normal distribution will influence the function
     # that determines how "fast" the looks diverge at the divergence point
     'item_dspeed_bias_sd' : [5],
+
+    ###################
+    # Probabilities of looking away
+    # Every fixation, before deciding whether the participant looked at the
+    # target or not, we randomly decide whether they instead "looked away".
+    # The probability of looking away is a sum of two values. One fixed, and
+    # one that is sampled per subject.
+
+    # The "overall" probability of looking away.
+    'outmonitor_look_prob' : [0.01],
+
+    # The per participant bias for looking away.
+    # For each participant, we sample from a normal distribution
+    # N(mean=0, sd=subj_outmonitor_look_bias_sd) and sum the sampled value to
+    # the probability of looking away.
+    'subj_outmonitor_look_bias_sd' : [0.001],
 }
 
 
@@ -249,6 +265,9 @@ def run_fake_data_generator(params, d_idx, seed):
                               'idpsd' + str(params['item_dpoint_bias_sd']),
                               'ipsd' + str(params['item_prob_bias_sd']),
                               'idssd' + str(params['item_dspeed_bias_sd']),
+
+                              "olp", str(params['outmonitor_look_prob']),
+                              "solpsd", str(params['subj_outmonitor_look_bias_sd']),
                               seed])
 
     run_args = [
@@ -275,6 +294,8 @@ def run_fake_data_generator(params, d_idx, seed):
         "--item_dpoint_bias_sd", str(params['item_dpoint_bias_sd']),
         "--item_prob_bias_sd", str(params['item_prob_bias_sd']),
         "--item_dspeed_bias_sd", str(params['item_dspeed_bias_sd']),
+        "--outmonitor_look_prob", str(params['outmonitor_look_prob']),
+        "--subj_outmonitor_look_bias_sd", str(params['subj_outmonitor_look_bias_sd']),
         "--pop_multiplier", str(population_multiplier),
     ]
     if params['dump_per_trial_fixation_stats']:
