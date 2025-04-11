@@ -18,8 +18,7 @@ POSTTRIAL_BUFFER = 250
 
 PRETRIAL_BUFFER_MARGIN = 250
 
-# How many consecutive ttests need to be significant
-DPA_DISTANCE = 200
+DPA_DISTANCE = 200           # How many consecutive ttests need to be significant
                              # for us to decide we found a divergence
 TTEST_SIGNIFICANCE = 1.96
 
