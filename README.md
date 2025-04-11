@@ -26,17 +26,6 @@ every millisecond). This leads to data that looks more or less like this:
 |    P35    |    0    | T0  | 2  |  Distractor  |   0      |
 |    P35    |    0    | T0  | 3  |  Target      |   1      |
 |    P35    |    0    | T0  | 3  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 4  |  Target      |   1      |
-|    P35    |    0    | T0  | 4  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 5  |  Target      |   1      |
-|    P35    |    0    | T0  | 5  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 6  |  Target      |   1      |
-|    P35    |    0    | T0  | 6  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 7  |  Target      |   1      |
-|    P35    |    0    | T0  | 7  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 8  |  Target      |   1      |
-|    P35    |    0    | T0  | 8  |  Distractor  |   0      |
-|    P35    |    0    | T0  | 9  |  Target      |   1      |
 
 That is, each row indicates whether a given participant is looking at a
 given object.
@@ -168,7 +157,7 @@ these columns represent in more details below):
  7. *is_looking*: whether the participant *participant* was looking (1)
     or not (0) to *object* in time *time*.
 
-      |participant|condition|trial|time|    object    |is_looking|
+|     |participant|condition|trial|time|    object    |is_looking|
 |:---:|:---------:|:-------:|:---:|:--:|:------------:|:--------:|
 | 538 |    P35    |    0    | T0  | 0  |  Target      |   1      |
 | 539 |    P35    |    0    | T0  | 0  |  Distractor  |   0      |
