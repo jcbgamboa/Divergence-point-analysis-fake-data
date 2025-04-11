@@ -30,9 +30,61 @@ every millisecond). This leads to data that looks more or less like this:
 That is, each row indicates whether a given participant is looking at a
 given object.
 
+Since we want to investigate Divergence Point Analysis, we assume participants
+will, at some point (the "divergence point") start looking more and more towards
+the "Target" object. With this tool, you can determine the time point when this
+will happen, how the "condition" affects this, and how much variability
+participants should have when doing it.
+
 In the following, you will learn more about what you need to use this tool,
 what exactly each script produces, how to use them, and finally (if you are
 interested) some technical details about how the data is generated.
+
+
+TL;DR
+=====
+
+TL;DR for Windows users
+-----------------------
+
+Install Python 3. Open the terminal and type
+```
+pip install pandas scipy plotnine
+```
+
+Make a new folder and download the files from this repository into it.
+Now open your terminal and type `cd C:\address\of\the\folder` (you can
+get it from Windows Explorer by clicking at the top bar, that indicates
+"where you are"). Press Enter. Now type
+```
+python dpa_fake_data_gen.py
+```
+to create a dataset, or
+```
+python run_generator.py
+```
+to create multiple datasets or to create datasets with specifics parameters.
+
+TL;DR for Mac users
+-------------------
+
+Install Python 3. Open the terminal and type
+```
+pip install pandas scipy plotnine
+```
+
+Make a new folder and download the files from this repository into it.
+Now open your terminal and type `cd /address/of/the/folder` (you can
+get it from Finder by copying the names of the folders at the bottom
+bar). Press Enter. Now type
+```
+python dpa_fake_data_gen.py
+```
+to create a dataset, or
+```
+python run_generator.py
+```
+to create multiple datasets or to create datasets with specifics parameters.
 
 
 
@@ -79,11 +131,9 @@ If you are a Windows or Mac user, you can probably just go to
 and choose the latest Python version. Or you can look through the list of
 all versions to get the 3.8.10 (which comes with an installer in Windows).
 
-When installing Python, make sure to select the option
-"Add Python to PATH"
-on the first screen of the installer.
-
-**TODO**: MAKE IMAGE HERE FOR WINDOWS USERS
+When installing Python, make sure to select the option that adds
+Python to your PATH variable (it is a checkbox on the very first screen
+of the installer).
 
 ### Linux users
 
@@ -137,15 +187,35 @@ pip install plotnine==0.12.1
 What does the tool do?
 ======================
 
-The program is composed of two scripts (more about them in the next sections):
+The tool is composed of two scripts (more about them in the next sections):
 
  * `dpa_fake_data_gen.py`: outputs a single dataset file
- * `run_generator.py`: repeatedly call `dpa_fake_data_gen.py`, generating many
-    datasets
+ * `run_generator.py`: repeatedly calls `dpa_fake_data_gen.py`, generating
+    many datasets. In principle, this script is just a "helper" script that
+    makes configuring `dpa_fake_data_gen.py` easyer, and
+    allows you to produce many datasets without having to specifically set
+    the (many many) parameters of `dpa_fake_data_gen.py` "by hand".
 
-Each dataset file produced by `dpa_fake_data_gen.py` is formatted as a .csv
-(comma-separated values) file, containing 7 columns (we will discuss what
-these columns represent in more details below):
+You have a lot of control over many parameters that will affect how the
+participants behave in your (fake) data: how much variability they have,
+how many trials they saw, how many conditions they saw, how long the trials
+were, the point in time when the probability of looking towards the
+Target object starts inscreasing, how suddenly this probability increases,
+etc. You can of course also control how many participants participated
+in your (fake) experiment.
+
+Before we describe these parameters, let's take a look at what the (fake)
+data produced by the scripts looks like, and how you use the tool to
+produce data.
+
+
+The output of `dpa_fake_data_gen.py`
+------------------------------------
+
+The data produced by `dpa_fake_data_gen.py` is very similar to the data
+shown in the beginning of this tutorial. It is a text file
+formatted as a .csv (comma-separated values) file, containing 7 columns
+(we will discuss what these columns represent in more details below):
 
  1. (A column without a name): this is produced automatically, and can be
     safely ignored
@@ -156,6 +226,8 @@ these columns represent in more details below):
  6. *object*: the object this row refers to
  7. *is_looking*: whether the participant *participant* was looking (1)
     or not (0) to *object* in time *time*.
+
+Here is a representation of what the output looks like:
 
 |     |participant|condition|trial|time|    object    |is_looking|
 |:---:|:---------:|:-------:|:---:|:--:|:------------:|:--------:|
@@ -179,9 +251,102 @@ these columns represent in more details below):
 | 555 |    P35    |    0    | T0  | 8  |  Distractor  |   0      |
 | 556 |    P35    |    0    | T0  | 9  |  Target      |   1      |
 
+And here is an extract of what the table above would like in the real
+output file:
+
+```
+,participant,condition,trial,time,object,is_looking
+538,P35,0,T0,0,Target,1
+539,P35,0,T0,0,Distractor,0
+540,P35,0,T0,1,Target,1
+541,P35,0,T0,1,Distractor,0
+542,P35,0,T0,2,Target,1
+543,P35,0,T0,2,Distractor,0
+544,P35,0,T0,3,Target,1
+545,P35,0,T0,3,Distractor,0
+546,P35,0,T0,4,Target,1
+547,P35,0,T0,4,Distractor,0
+548,P35,0,T0,5,Target,1
+549,P35,0,T0,5,Distractor,0
+550,P35,0,T0,6,Target,1
+551,P35,0,T0,6,Distractor,0
+552,P35,0,T0,7,Target,1
+553,P35,0,T0,7,Distractor,0
+554,P35,0,T0,8,Target,1
+555,P35,0,T0,8,Distractor,0
+556,P35,0,T0,9,Target,1
+```
+
 
 How do I use the tool?
-======================
+----------------------
+
+Download the files from this repository and put them all into a single folder.
+Now, pay attention to the specific "address" (in your computer) where you
+downloaded them. If you are using Windows, this "address" will look something
+like `C:\folder1\folder2\folder3\etc\`, and you can get it from
+Windows Explorer by clicking at the top bar, that indicates "where you are".
+If you are in Mac, this "address" will look like /folder1/folder2/folder3/etc,
+and you can get it from Finder by copying the names of the folders at the
+bottom bar.
+
+Now open a terminal and type the following command, replacing
+`address_to_folder` with the address of the previous paragraph:
+```
+cd address_to_folder
+```
+
+Now, if you just want to create a single dataset, you can just call directly
+`dpa_fake_data_gen.py` with Python. just do:
+```
+python dpa_fake_data_gen.py
+```
+This will create a new file in the same folder where you put the scripts.
+The file will be named `fake_data.csv`. You will note some other new files
+too. These will be discussed along with the many configuration parameters of
+`dpa_fake_data_gen.py`.
+
+If you want to create many datasets, you can also run
+```
+python run_generator.py
+```
+to create multiple datasets. "Multiple", in this case, depends on the
+parameters you set for the script `run_generator.py`.
+
+
+How can I configure `dpa_fake_data_gen.py`?
+-------------------------------------------
+
+**TODO: replace `run_generator.py` with a simple GUI.**
+
+This is where the `run_generator.py` script enters the scene.
+While the `dpa_fake_data_gen.py` script allows you to set many parameters
+from the command line, this is not a very intuitive way of using it.
+If you open the `run_generator.py` script in a text editor (say,
+notepad), you will see it contains many lines that look like:
+```
+# Explanation of what the variable `variable` does
+# (More explanation... bla bla bla)
+variable = value
+```
+You can choose whichever values you want for all these variables.
+
+Similarly, it also contains many other lines that look like:
+```
+    # Explanation of what the variable `'variable1'` does:
+    'variable1'      : [value1],
+```
+or
+```
+    # Explanation of what the variable `'variable2'` does:
+    'variable2'      : [value2, value3],
+```
+
+These are all variables that you can set multiple parameters for.
+`run_generator.py` will create datasets with every combination of
+parameters values you choose here. For example, from the example
+above, it will first create datasets where `variable1` is `value1` and
+`variable2` is `value2`, and then it will
 
 
 
