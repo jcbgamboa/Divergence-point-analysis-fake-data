@@ -1,7 +1,12 @@
 # I am expecting this to be available in all computers
+import os
 import tkinter as tk
 
 import run_generator as rg
+
+cwd = os.path.dirname(os.path.realpath(__file__))
+os.chdir(cwd)
+
 
 def extract_parameters(data_widgets, general_widgets, whole_dataset_widgets):
     # TODO: maybe remove the code repetition here?

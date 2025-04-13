@@ -105,5 +105,5 @@ def generate_datasets(general_params, params, additional_callback):
             seed = random_string()
             process = run_fake_data_generator(general_params, param_set, dataset_idx, seed)
             while process.poll() is None:
-                additional_callback(idx, dataset_idx, total_parameters_sets, general_params['n_datasets_per_paramset'])
+                additional_callback(idx+1, dataset_idx+1, total_parameters_sets, general_params['n_datasets_per_paramset'])
 
