@@ -6,213 +6,6 @@ import random
 import string
 
 
-################################################################################
-# General variables
-
-# Number of datasets per parameter set
-n_datasets_per_paramset = 1
-
-# The random seed (this can be any number. It will be used to generate random
-# seeds for the generated datasets)
-rand_seed = 1234
-
-# The name of the output folder
-out_folder = 'out_datasets'
-
-# A name to prepend the generated file names. Every generated file will be named
-# <out_file>_<n_subjs>_...     NEED TO ASK OPINIONS
-out_file = 'fakedata'
-
-# The default `slow_factor` to be passed to the `sigmoid` function. When this
-# value is big, the divergence will happen slowly, from the divergence point on.
-# When this value is small, the divergence will be fast.
-# BUT NOTE: this value should probably be a bit bigger than the sum of the other
-# `dspeed` biases. Take a look at the `sigmoid` function for more details.
-#
-# TODO: Should this be inside `params`, so that we can create datasets with
-#       varying dspeed values? (if you eventually change this, add it to the
-#       `out_file_name` variable)
-dspeed_slow_factor = 50
-
-# Whether we should try to force the divergence point of condition 0 to be *EXACTLY*
-# at `args.dpoint`
-# If this is set, the generator will produce a larger population,
-# perform a DPA on this larger population, and then shift the trials so that
-# the divergence point for condition 0 is *exactly* at the time `dpoint`,
-# the divergence point for condition 1 is *exactly* at the time `dpoint + cond_effect`,
-# and so on. Then, it will sample `n_subjs` from this population.
-# (this is mutually exclusive with `force_dp_memory_efficient`)
-force_divergence_point = False
-
-# A "memory efficient" version of the `force_divergence_point` algorithm.
-# (this is mutually exclusive with `force_divergence_point`)
-force_dp_memory_efficient = True
-
-# (Only useful if `force_dpoint` is set)
-# This will be used to define the size of the "larger population" in the
-# description of `force_divergence_point` above. It will have size:
-# `n_subjs * pop_multiplier`.
-population_multiplier = 1
-
-
-params = {
-    ###################
-    # Variables about the datasets as a whole
-
-    # How many participants in each file
-    'n_subjs'          : [40],
-
-    # How many conditions each participant saw
-    'n_conds'          : [2],
-
-    # How many trials for each combination 'participant x condition' ?
-    'n_trials'         : [80],
-
-    # The length of each trial in ms
-    'trial_len'     : [1000],
-
-    # The point in ms at which the probability of looks towards the target *start*
-    # increasing
-    'dpoint' : [300],
-
-    # The effect of each condition. For example, if the divergence point is 300 and
-    # `cond_effect` is 100, then:
-    # In condition 0, the divergence point will be 300 + (0 * 100) = 300ms
-    # In condition 1, the divergence point will be 300 + (1 * 100) = 400ms
-    # In condition 2, the divergence point will be 300 + (2 * 100) = 500ms
-    # ...
-    'cond_effect' : [100, 200],
-
-    # If you want additional stats, set these to true
-    'dump_per_trial_fixation_stats': [False],
-    'dump_overall_fixation_stats': [False],
-
-    ###################
-    # Random variation for every trial
-    # These indicate random variability for every trial.
-    # Every trial, we sample from a normal distribution N(mean=0, sd=variable),
-    # use the sampled number in the following ways...
-
-    # The standard deviation of the random noise of the divergence point.
-    # Every trial, we sample from the normal distribution and sum the sampled
-    # value to the divergence point
-    'rand_dp_noise_sd' : [10],
-
-    # The standard deviation of the random noise of the probability.
-    # Every trial, we sample from the normal distribution and sum it to the
-    # probability of looking to the target
-    'rand_prob_noise_sd' : [0.01],
-
-    # The standard deviation of the random noise of the "divergence speed".
-    # Every trial, we sample from the normal distribution and use this number to
-    # influence the function that determines how "fast" the looks diverge at the
-    # divergence point
-    'rand_dspeed_noise_sd' : [2],
-
-
-    ###################
-    # Per trial per participant variables
-    # For each participant, we sample from a normal distribution
-    # N(mean=0, sd=variable) and use the sampled value as the standard deviation
-    # of *another* normal distribution N(mean=0, sd=sample_value), i.e., as the
-    # variability of the particular participant (some participants will have a
-    # large variability, some participants will have a low variability). Then,
-    # for every trial, we sample from this other normal distribution.
-
-    # The per trial per participant variability of the divergence point.
-    # The value sampled from the "other" normal distribution (every trial)
-    # will be summed to the divergence point
-    'subj_per_trial_dpoint_var_sd' : [7],
-
-    # The per trial per participant variability of the participant bias.
-    # The value sampled from the "other" normal distribution (every trial)
-    # will be summed to the probability of looks to the target
-    'subj_per_trial_bias_var_sd'   : [0.005],
-
-    # The per trial per participant variability of the "divergence speed".
-    # The value sampled from the "other" normal distribution (every trial)
-    # will influence the function that determines how "fast" the looks diverge
-    # at the divergence point
-    'subj_per_trial_dspeed_var_sd' : [2],
-
-
-    ###################
-    # Per participant variables. This is set once for each participant.
-    # For each participant, we sample from a normal distribution
-    # N(mean=0, sd=variable) and use the sampled value directly to influence
-    # something. (no per-trial random resampling as in the previous section)
-
-    # The per participant random intercept of the divergence point.
-    # The value sampled from the normal distribution will be summed to the
-    # divergence point
-    'subj_dpoint_rand_intercept_sd' : [15],
-
-    # The per participant random slope of the divergence point.
-    # The value sampled from the normal distribution will be summed to
-    # `cond_effect` before calculating the new divergence point.
-    'subj_dpoint_rand_slope_sd' : [5],
-
-    # The per participant bias towards one of the images.
-    # The value sampled from the normal distribution will be summed to the
-    # probability of looking to the target.
-    'subj_bias_var_sd' : [0.05],
-
-    # The per participant bias on the "divergence speed". The idea is that
-    # some participants diverge faster than others.
-    # The value sampled from the normal distribution will influence the function
-    # that determines how "fast" the looks diverge at the divergence point
-    'subj_dspeed_bias_var_sd' : [4],
-
-
-    ###################
-    # Per item variables. This is set once for each combination item/condition
-    # (I do it along with condition because I assume that the items are
-    # different in the different conditions)
-    # For each combination item/condition, we sample from a normal distribution
-    # N(mean=0, sd=variable) and use the sampled value directly to influence
-    # something.
-
-    # The per item variability on the divergence point.
-    # The value sampled from the normal distribution will be summed to the
-    # divergence point
-    'item_dpoint_bias_sd' : [15],
-
-    # The per item bias towards one of the other images.
-    # This bias models the situation where one of the images of a given item
-    # is more "salient" than the other.
-    # The value sampled from the normal distribution will be summed to the
-    # probability of looks to the target.
-    'item_prob_bias_sd': [0.05],
-
-    # The per item bias on the "divergence speed". The idea is that some items
-    # will lead participants to diverge faster than others.
-    # The value sampled from the normal distribution will influence the function
-    # that determines how "fast" the looks diverge at the divergence point
-    'item_dspeed_bias_sd' : [5],
-
-    ###################
-    # Probabilities of looking away
-    # Every fixation, before deciding whether the participant looked at the
-    # target or not, we randomly decide whether they instead "looked away".
-    # The probability of looking away is a sum of two values. One fixed, and
-    # one that is sampled per subject.
-
-    # The "overall" probability of looking away.
-    'outmonitor_look_prob' : [0.01],
-
-    # The per participant bias for looking away.
-    # For each participant, we sample from a normal distribution
-    # N(mean=0, sd=subj_outmonitor_look_bias_sd) and sum the sampled value to
-    # the probability of looking away.
-    'subj_outmonitor_look_bias_sd' : [0.001],
-}
-
-
-################################################################################
-
-# Set random seed
-random.seed(rand_seed)
-
 # Where is Python / what is Python named in this computer?
 PY = sys.executable
 
@@ -226,24 +19,15 @@ def random_string(length = 6):
     # This is the `random_choice` method from https://stackoverflow.com/a/56398787
     return ''.join(random.choices(alphabet, k=length))
 
-def generate_combinations(df):
+def generate_combinations(dictionary):
     # This is cryptic, but is directly from https://stackoverflow.com/a/61335465
-    keys, values = zip(*df.items())
+    keys, values = zip(*dictionary.items())
     permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
     return permutations_dicts
 
-def generate_datasets(df):
-    if not os.path.exists(out_folder):
-        os.makedirs(out_folder)
 
-    parameter_sets = generate_combinations(df)
-    for param_set in parameter_sets:
-        for dataset_idx in range(n_datasets_per_paramset):
-            seed = random_string()
-            run_fake_data_generator(param_set, dataset_idx, seed)
-
-def run_fake_data_generator(params, d_idx, seed):
-    out_file_name = '_'.join([out_file,
+def run_fake_data_generator(general_params, params, d_idx, seed):
+    out_file_name = '_'.join([general_params['out_file'],
                               'sub' + str(params['n_subjs']),
                               'cond' + str(params['n_conds']),
                               'tri' + str(params['n_trials']),
@@ -279,7 +63,7 @@ def run_fake_data_generator(params, d_idx, seed):
         "--n_trials", str(params['n_trials']),
         "--trial_len", str(params['trial_len']),
         "--dpoint", str(params['dpoint']),
-        "--dspeed_slow_factor", str(dspeed_slow_factor),
+        "--dspeed_slow_factor", str(general_params['dspeed_slow_factor']),
         "--cond_effect", str(params['cond_effect']),
         "--rand_dp_noise_sd", str(params['rand_dp_noise_sd']),
         "--rand_prob_noise_sd", str(params['rand_prob_noise_sd']),
@@ -296,18 +80,30 @@ def run_fake_data_generator(params, d_idx, seed):
         "--item_dspeed_bias_sd", str(params['item_dspeed_bias_sd']),
         "--outmonitor_look_prob", str(params['outmonitor_look_prob']),
         "--subj_outmonitor_look_bias_sd", str(params['subj_outmonitor_look_bias_sd']),
-        "--pop_multiplier", str(population_multiplier),
+        "--pop_multiplier", str(general_params['population_multiplier']),
     ]
-    if params['dump_per_trial_fixation_stats']:
+    if general_params['dump_per_trial_fixation_stats']:
         run_args.append("--dump_per_trial_fixation_stats")
-    if params['dump_overall_fixation_stats']:
+    if general_params['dump_overall_fixation_stats']:
         run_args.append("--dump_overall_fixation_stats")
-    if force_divergence_point:
+    if general_params['force_divergence_point']:
         run_args.append("--force_dpoint")
-    if force_dp_memory_efficient:
+    if general_params['force_dp_memory_efficient']:
         run_args.append("--force_dpoint_me")
 
-    subprocess.run(run_args)
+    return subprocess.Popen(run_args)
 
-if __name__ == '__main__':
-    generate_datasets(params)
+def generate_datasets(general_params, params, additional_callback):
+    if not os.path.exists(general_params['out_folder']):
+        os.makedirs(general_params['out_folder'])
+
+    parameter_sets = generate_combinations(params)
+    total_parameters_sets = len(parameter_sets)
+
+    for idx,param_set in enumerate(parameter_sets):
+        for dataset_idx in range(general_params['n_datasets_per_paramset']):
+            seed = random_string()
+            process = run_fake_data_generator(general_params, param_set, dataset_idx, seed)
+            while process.poll() is None:
+                additional_callback(idx, dataset_idx, total_parameters_sets, general_params['n_datasets_per_paramset'])
+

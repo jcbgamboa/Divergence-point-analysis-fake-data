@@ -3,9 +3,33 @@ import tkinter as tk
 
 import run_generator as rg
 
-def run_fake_data_gen(label, data_widgets, general_widgets, whole_dataset_widgets):
-    label['text'] = 'blahblah\n\nfwefaew'
+def extract_parameters(data_widgets, general_widgets, whole_dataset_widgets):
+    # TODO: maybe remove the code repetition here?
+    general_params = {}
+    for i in general_widgets:
+        if hasattr(i, 'varname'):
+            general_params[i.varname] = i.get_value()
 
+    params = {}
+    for i in data_widgets + whole_dataset_widgets:
+        if hasattr(i, 'varname'):
+            params[i.varname] = i.get_value()
+
+    return general_params, params
+
+
+def run_fake_data_gen(label, data_widgets, general_widgets, whole_dataset_widgets):
+    def update_label(curr_paramset, curr_iter, total_paramsets, total_per_paramset):
+        # Just a fancy way to avoid showing `label` to `run_generator.py`
+        label['text'] = "Generating dataset " + str(curr_iter) + "/" + str(total_per_paramset) + \
+                        " for parameter set " + str(curr_paramset) + "/" + str(total_paramsets)
+        label.update_idletasks()
+
+    label['text'] = 'Extracting parameters'
+    general_params, params = extract_parameters(data_widgets, general_widgets, whole_dataset_widgets)
+
+    rg.random.seed(general_params['rand_seed'])
+    rg.generate_datasets(general_params, params, update_label)
 
 
 class CreateToolTip(object):
@@ -117,14 +141,21 @@ class NumberField(TextField):
         self.change_value(-1)
 
     def get_value(self):
-        return self.text_obj.get()
+        return int(self.text_obj.get())
 
 class ListField(TextField):
     def __init__(self, frame, text, varname, default_value, tooltip):
         super().__init__(frame, text, varname, default_value, tooltip)
 
     def get_value(self):
-        return awefawe # TODO: parse the input comma separated
+        # This is a hack so that Python doesn't complain if there is only a
+        # single number. We add another element, here... and then remove it
+        # with [:-1] upon returning
+        content = self.text_obj.get() + ', 100'
+        # From https://stackoverflow.com/a/19334424
+        # This `eval()` option is good because it allows me not to have to
+        # explicitly say whether the type is `int` or `float`
+        return list(eval(content))[:-1]
 
 
 class CheckboxField(Field):
@@ -160,7 +191,7 @@ general_vars = [
     (TextField, 'Output file name prefix', 'out_file', 'fakedata',
      'A name to prepend the generated file names. Every generated file will be named '
      '<out_file>_<n_subjs>_...'),
-    (TextField, 'Divergence Speed "slow factor"', 'out_file', 50,
+    (TextField, 'Divergence Speed "slow factor"', 'dspeed_slow_factor', 50,
      'The default `slow_factor` to be passed to the `sigmoid` function. When this '
      'value is big, the divergence will happen slowly, from the divergence point on. '
      'When this value is small, the divergence will be fast. '
@@ -175,14 +206,18 @@ general_vars = [
      'the divergence point for condition 1 is *exactly* at the time `dpoint + cond_effect`, '
      'and so on. Then, it will sample `n_subjs` from this population. '
      '(this is mutually exclusive with `force_dp_memory_efficient`) '),
-    (CheckboxField, 'Force Divergence Point (Memory efficient)', 'force_divergence_point', True,
+    (CheckboxField, 'Force Divergence Point (Memory efficient)', 'force_dp_memory_efficient', True,
      'A "memory efficient" version of the `force_divergence_point` algorithm. '
      '(this is mutually exclusive with `force_divergence_point`)'),
-    (TextField, 'Population multiplier', 'out_file', 50,
+    (TextField, 'Population multiplier', 'population_multiplier', 50,
      '(Only useful if `force_dpoint` is set). '
      'This will be used to define the size of the "larger population" in the '
      'description of `force_divergence_point` above. It will have size: '
-     '`n_subjs * pop_multiplier`. ')
+     '`n_subjs * pop_multiplier`. '),
+    (CheckboxField, 'Dump per trial fixation stats', 'dump_per_trial_fixation_stats', False,
+     'Additional stats on the length of each trial fixation.'),
+    (CheckboxField, 'Dump overall fixation stats', 'dump_overall_fixation_stats', False,
+     'Additional stats on the length of fixations for the whole dataset.')
 ]
 
 whole_dataset_vars = [
@@ -213,11 +248,7 @@ whole_dataset_vars = [
      'In condition 0, the divergence point will be 300 + (0 * 100) = 300ms\n'
      'In condition 1, the divergence point will be 300 + (1 * 100) = 400ms\n'
      'In condition 2, the divergence point will be 300 + (2 * 100) = 500ms\n'
-     '...'),
-    (CheckboxField, 'Dump per trial fixation stats', 'dump_per_trial_fixation_stats', False,
-     'Additional stats on the length of each trial fixation.'),
-    (CheckboxField, 'Dump overall fixation stats', 'dump_per_trial_fixation_stats', False,
-     'Additional stats on the length of fixations for the whole dataset.')
+     '...')
 ]
 
 random_var_per_trial = [
