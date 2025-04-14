@@ -53,17 +53,8 @@ pip install pandas scipy plotnine
 ```
 
 Make a new folder and download the files from this repository into it.
-Now open your terminal and type `cd C:\address\of\the\folder` (you can
-get it from Windows Explorer by clicking at the top bar, that indicates
-"where you are"). Press Enter. Now type
-```
-python dpa_fake_data_gen.py
-```
-to create a dataset, or
-```
-python run_generator.py
-```
-to create multiple datasets or to create datasets with specifics parameters.
+Now click twice on `main.py`. The program should run. If it doesn't,
+right click on `main.py` and choose `Run with -> Python`.
 
 TL;DR for Mac users
 -------------------
@@ -71,21 +62,16 @@ TL;DR for Mac users
 Install Python 3. Open the terminal and type
 ```
 pip install pandas scipy plotnine
+# (Maybe you will have to write `pip3` instead of `pip`)
 ```
 
 Make a new folder and download the files from this repository into it.
-Now open your terminal and type `cd /address/of/the/folder` (you can
-get it from Finder by copying the names of the folders at the bottom
-bar). Press Enter. Now type
-```
-python dpa_fake_data_gen.py
-```
-to create a dataset, or
-```
-python run_generator.py
-```
-to create multiple datasets or to create datasets with specifics parameters.
-
+Now twice on the file `main.py`. This will open its code in a program
+called IDLE. If it doesn't, try clicking with the right button and
+choosing `Open with -> IDLE (Py 3.8)`. Now, click anywhere on the
+code. At the top of your screen, the menu `Run` will appear. Now
+click on `Run -> Run module` (or press F5). This will start the
+program.
 
 
 What do I need in order to use it?
@@ -133,7 +119,8 @@ all versions to get the 3.8.10 (which comes with an installer in Windows).
 
 When installing Python, make sure to select the option that adds
 Python to your PATH variable (it is a checkbox on the very first screen
-of the installer).
+of the installer), and make sure to install Tkinter along with your
+installation (it is installed by default).
 
 ### Linux users
 
@@ -157,7 +144,10 @@ Debian-based users can probably just do
 ```
 $ sudo apt install python3
 ```
-to install a reasonably-new version Python 3 in their computer.
+to install a reasonably-new version Python 3 in their computer. You
+may need to install a package called `python3-tk` if it is not already
+installed (i.e., `sudo apt install python3-tk`).
+
 
 Installing pandas, scipy and plotnine
 -------------------------------------
@@ -187,14 +177,13 @@ pip install plotnine==0.12.1
 What does the tool do?
 ======================
 
-The tool is composed of two scripts (more about them in the next sections):
+The tool is composed of three scripts (more about them in the next sections):
 
+ * `main.py`: creates the windowed interface. This is the "main" script,
+   i.e., the entry point of the program.
  * `dpa_fake_data_gen.py`: outputs a single dataset file
- * `run_generator.py`: repeatedly calls `dpa_fake_data_gen.py`, generating
-    many datasets. In principle, this script is just a "helper" script that
-    makes configuring `dpa_fake_data_gen.py` easyer, and
-    allows you to produce many datasets without having to specifically set
-    the (many many) parameters of `dpa_fake_data_gen.py` "by hand".
+ * `run_generator.py`: special functions to call `dpa_fake_data_gen.py`,
+   used by `main.py`.
 
 You have a lot of control over many parameters that will affect how the
 participants behave in your (fake) data: how much variability they have,
@@ -277,77 +266,46 @@ output file:
 556,P35,0,T0,9,Target,1
 ```
 
+Note how each row contains the same number of commas, because they delimit
+the columns of the table.
+
 
 How do I use the tool?
 ----------------------
 
+
 Download the files from this repository and put them all into a single folder.
-Now, pay attention to the specific "address" (in your computer) where you
-downloaded them. If you are using Windows, this "address" will look something
-like `C:\folder1\folder2\folder3\etc\`, and you can get it from
-Windows Explorer by clicking at the top bar, that indicates "where you are".
-If you are in Mac, this "address" will look like /folder1/folder2/folder3/etc,
-and you can get it from Finder by copying the names of the folders at the
-bottom bar.
+If you have everything installed, now all you have to do is to run the file
+`main.py` with Python. In Windows, you probably can do this by clicking twice
+on it. In Mac, clicking twice may end up showing the file's content (its code)
+with a program called IDLE. If that is the case, you can just click anywhere
+in the code and press F5 to run the code.
 
-Now open a terminal and type the following command, replacing
-`address_to_folder` with the address of the previous paragraph:
-```
-cd address_to_folder
-```
-
-Now, if you just want to create a single dataset, you can just call directly
-`dpa_fake_data_gen.py` with Python. just do:
-```
-python dpa_fake_data_gen.py
-```
-This will create a new file in the same folder where you put the scripts.
-The file will be named `fake_data.csv`. You will note some other new files
-too. These will be discussed along with the many configuration parameters of
-`dpa_fake_data_gen.py`.
-
-If you want to create many datasets, you can also run
-```
-python run_generator.py
-```
-to create multiple datasets. "Multiple", in this case, depends on the
-parameters you set for the script `run_generator.py`.
+If everything goes well, it should show a window with many fields.
 
 
 How can I configure `dpa_fake_data_gen.py`?
 -------------------------------------------
 
-**TODO: replace `run_generator.py` with a simple GUI.**
+The interface contains many variables that you can choose the value for.
+You can hover with the mouse over the title of each "section", and over the
+variables to learn more about what they do.
 
-This is where the `run_generator.py` script enters the scene.
-While the `dpa_fake_data_gen.py` script allows you to set many parameters
-from the command line, this is not a very intuitive way of using it.
-If you open the `run_generator.py` script in a text editor (say,
-notepad), you will see it contains many lines that look like:
-```
-# Explanation of what the variable `variable` does
-# (More explanation... bla bla bla)
-variable = value
-```
-You can choose whichever values you want for all these variables.
+The variables in the left column have to do with the many variability
+parameters: variability per trial, per participant, per trial AND participant,
+per item, and the probability of looks away from the screen.
 
-Similarly, it also contains many other lines that look like:
-```
-    # Explanation of what the variable `'variable1'` does:
-    'variable1'      : [value1],
-```
-or
-```
-    # Explanation of what the variable `'variable2'` does:
-    'variable2'      : [value2, value3],
-```
+The variables to the right have either have to do with ALL datasets
+(the block at the top) or with each of the datasets as a whole.
 
-These are all variables that you can set multiple parameters for.
-`run_generator.py` will create datasets with every combination of
-parameters values you choose here. For example, from the example
-above, it will first create datasets where `variable1` is `value1` and
-`variable2` is `value2`, and then it will
+Once you are done setting the values for the variables, you can just click
+on `Run Generator`. The program will create a folder in the same place where
+the scripts are, with the name that was set in the variable
+`Output folder name`. Then, it will place the generated there inside.
 
+**NOTE**: generating the datasets may take A LONG TIME, especially if you
+set a large `population_multiplier`. Don't worry if the GUI seem to
+"crash" when you click `Run Generator`.
 
 
 TODO
