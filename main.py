@@ -44,7 +44,7 @@ class CreateToolTip(object):
     """
     def __init__(self, widget, text='widget info'):
         self.waittime = 500     #miliseconds
-        self.wraplength = 550   #pixels
+        self.wraplength = 700   #pixels
         self.widget = widget
         self.text = text
         self.widget.bind("<Enter>", self.enter)
@@ -82,7 +82,7 @@ class CreateToolTip(object):
         self.tw.wm_geometry("+%d+%d" % (x, y))
         label = tk.Label(self.tw, text=self.text, justify='left',
                        background="#ffffff", relief='solid', borderwidth=1,
-                       wraplength = self.wraplength)
+                       wraplength = self.wraplength, font=("Arial", 14))
         label.pack(ipadx=1)
 
     def hidetip(self):
@@ -103,8 +103,9 @@ class Field:
         self.own_frame.columnconfigure(1, weight=1)
         self.own_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.label = tk.Label(master=self.own_frame, text=text)
-        self.label.grid(row=0, column=0, sticky=tk.W, padx=5)
+        self.label = tk.Label(master=self.own_frame, text=text,
+                              justify='left', font=("Arial", 14))
+        self.label.grid(row=0, column=0, sticky='w', padx=5)
         if tooltip is not None:
             self.label_tooltip = CreateToolTip(self.label, tooltip)
 
@@ -187,38 +188,51 @@ general_vars = [
     (Field, '(Input only a single value for each variable)', None),
     (Field, '', None),
     (NumberField, 'Datasets per parameter set', 'n_datasets_per_paramset', 1,
-     'Number of datasets per parameter set'),
+     'For many of the variables, you can input multiple values separated by commas. '
+     'The program will find all possible combinations of the values you input. Each '
+     'combination is referred to as a "parameter set".\n\n'
+     'This variable defines how many datasets should be created for each '
+     'combination.'),
     (TextField, 'Random seed', 'rand_seed', 1234,
-     'The random seed (this can be any number. It will be used to generate random '
-     'seeds for the generated datasets)'),
+     'The random seed (this can be any number).\n\n'
+     'It will be used to generate random seeds for the generated datasets. '
+     '(yes, this random seed will generate new random seeds.)'),
     (TextField, 'Output folder name', 'out_folder', 'out_datasets',
-     'The name of the output folder'),
+     'The name of the output folder where the generated datasets will be placed.'),
     (TextField, 'Output file name prefix', 'out_file', 'fakedata',
      'A name to prepend the generated file names. Every generated file will be named '
-     '<out_file>_<n_subjs>_...'),
+     '<Output file name prefix>_<Number of Participants>_<Number of Conditions>_...'),
     (TextField, 'Divergence Speed "slow factor"', 'dspeed_slow_factor', 50,
-     'The default `slow_factor` to be passed to the `sigmoid` function. When this '
-     'value is big, the divergence will happen slowly, from the divergence point on. '
-     'When this value is small, the divergence will be fast. '
+     '(technical): the function we use to calculate the probabilities (of looks to '
+     'the target) from the Divergence Point on is a sigmoid function (that, for our '
+     'purposes, starts at ~0.5 and approaches 1). An input to this function is a '
+     '`slow_factor` that changes how fast it approaches 1. When this '
+     'value is big, the divergence will happen slowly (the "Divergence speed" will '
+     'be smaller). When this value is small, the divergence will be fast.\n\n'
      'BUT NOTE: this value should probably be a bit bigger than the sum of the other '
-     '`dspeed` biases. Take a look at the `sigmoid` function for more details.'),
+     '"Divergence Speed" biases. Take a look at the `sigmoid` function for more details.'),
     (CheckboxField, 'Force Divergence Point', 'force_divergence_point', False,
      'Whether we should try to force the divergence point of condition 0 to be *EXACTLY* '
-     'at the specified divergence point.\n'
-     'If this is set, the generator will produce a larger population, '
-     'perform a DPA on this larger population, and then shift the trials so that '
-     'the divergence point for condition 0 is *exactly* at the time `dpoint`, '
-     'the divergence point for condition 1 is *exactly* at the time `dpoint + cond_effect`, '
-     'and so on. Then, it will sample `n_subjs` from this population. '
-     '(this is mutually exclusive with `force_dp_memory_efficient`) '),
+     'at the specified divergence point.\n\n'
+     'If this is set, the generator will produce a larger population (of size '
+     '`Number of Participants` x `Population Multiplier`), '
+     'perform a DPA on this larger population, and then shift the trials so that\n\n'
+     ' * the Div. Point for Condition 0 is *exactly* at the time `Divergence Point`,\n'
+     ' * the Div. Point for Condition 1 is *exactly* at the time\n'
+     '   `Divergence Point + Condition Effect`,\n\n'
+     '... and so on. Then, it will sample `Number of Participants` from this (larger) '
+     'population to produce the final dataset.\n\n'
+     'The idea here was that the Div. Point of a larger population should be a better '
+     'approximation of the "real" Div. Point. (but, well, we found out it is not)\n\n'
+     '(this is mutually exclusive with `Force Divergence Point (Memory efficient)`)'),
     (CheckboxField, 'Force Divergence Point (Memory efficient)', 'force_dp_memory_efficient', True,
-     'A "memory efficient" version of the `force_divergence_point` algorithm. '
-     '(this is mutually exclusive with `force_divergence_point`)'),
-    (TextField, 'Population multiplier', 'population_multiplier', 50,
-     '(Only useful if `force_dpoint` is set). '
+     'A "memory efficient" version of the `Force Divergence Point` algorithm. '
+     '(this is mutually exclusive with `Force Divergence Point`)'),
+    (TextField, 'Population Multiplier', 'population_multiplier', 50,
+     '(Only useful if `Force Divergence Point` (both Memory efficient and Not) is set).\n\n'
      'This will be used to define the size of the "larger population" in the '
-     'description of `force_divergence_point` above. It will have size: '
-     '`n_subjs * pop_multiplier`. '),
+     'description of `Force Divergence Point` above. It will have size: '
+     '`Number of Participants * Population Multiplier`. '),
     (CheckboxField, 'Dump per trial fixation stats', 'dump_per_trial_fixation_stats', False,
      'Additional stats on the length of each trial fixation.'),
     (CheckboxField, 'Dump overall fixation stats', 'dump_overall_fixation_stats', False,
@@ -228,28 +242,28 @@ general_vars = [
 whole_dataset_vars = [
     (Field, 'Per dataset general variables',
      'These variables do not have to do probabilities or variabilities, but rather '
-     'with general information that will be relevant for the dataset as a whole.'),
+     'with general information that will be relevant for each dataset as a whole.'),
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
     (ListField, 'Number of participants', 'n_subjs', 40,
-     'How many participants in each dataset.'),
+     'How many participants will be generated for each dataset.'),
     (ListField, 'Number of condition', 'n_conds', 2,
-     'How many conditions each participant saw.'),
+     'How many conditions was seen by each participant.\n\n'
+     'NOTE: For now, setting a value different from 2 may not work.'),
     (ListField, 'Number of trials per condition', 'n_trials', 80,
-     'How many trials for each combination `participant x condition`'),
+     'How many trials were performed for each combination Participant x Condition'),
     (ListField, 'Trial length (in ms)', 'trial_len', 1000,
      'The length of each trial in ms'),
-    (ListField, 'Divergence Point (see tooltip)', 'dpoint', 300,
+    (ListField, 'Divergence Point', 'dpoint', 300,
      'If you do not set "Force Divergence Point" (or its memory efficient version), '
      'then this is the point (in ms) at which the probability of looks towards the '
      'target *starts* to increase.\n\n'
      'If you set the option to "Force Divergence Point", then we will try to '
-     'use a simpler non-bootstrapped version of DPA to kind-of force the '
+     'use a simpler non-bootstrapped version of the DPA to (kind-of) force the '
      'divergence point to be the specified value.'),
-    (ListField, 'Effect of condition', 'cond_effect', '100, 200',
-     'The length of each trial in ms'
+    (ListField, 'Effect of Condition', 'cond_effect', '100, 200',
      'The effect of each condition. For example, if the divergence point is 300 and '
-     '`cond_effect` is 100, then:\n'
+     '`Effect of Condition` is 100, then:\n'
      'In condition 0, the divergence point will be 300 + (0 * 100) = 300ms\n'
      'In condition 1, the divergence point will be 300 + (1 * 100) = 400ms\n'
      'In condition 2, the divergence point will be 300 + (2 * 100) = 500ms\n'
@@ -260,19 +274,21 @@ random_var_per_trial = [
     (Field, 'Random variation for every trial',
      'These indicate random variability for every trial.\n'
      'Every trial, we sample from a normal distribution N(mean=0, sd=variable) '
-     'use the sampled number in the following ways...'),
+     'use the sampled number to add to the trial\'s variability.\n\n'
+     'See the notes for each variable to know exactly how the sampled number '
+     'will be used'),
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
     (ListField, 'Variation on Divergence Point', 'rand_dp_noise_sd', 10,
-     'The standard deviation of the random noise of the divergence point.\n'
+     'The standard deviation of the random noise of the divergence point.\n\n'
      'Every trial, we sample from the normal distribution and sum the sampled '
      'value to the divergence point.'),
     (ListField, 'Variation in Prob. of looks to Target', 'rand_prob_noise_sd', 0.01,
-     'The standard deviation of the random noise of the probability.\n'
+     'The standard deviation of the random noise of the probability.\n\n'
      'Every trial, we sample from the normal distribution and sum it to the '
      'probability of looking to the target'),
     (ListField, 'Variation in "Div. Speed"', 'rand_dspeed_noise_sd', 2,
-     'The standard deviation of the random noise of the "divergence speed".\n'
+     'The standard deviation of the random noise of the "divergence speed".\n\n'
      'Every trial, we sample from the normal distribution and use this number to '
      'influence the function that determines how "fast" the looks diverge at the '
      'divergence point')
@@ -285,13 +301,15 @@ per_trial_per_subj_var = [
      'of *another* normal distribution N(mean=0, sd=sample_value), i.e., as the '
      'variability of the particular participant (some participants will have a ' 
      'large variability, some participants will have a low variability). Then, '
-     'for every trial, we sample from this other normal distribution.'),
+     'for every trial, we sample from this other normal distribution.\n\n'
+     'See the notes for each variable to know exactly how the sampled number '
+     'will be used'),
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
     (ListField, 'Variation on Divergence Point', 'subj_per_trial_dpoint_var_sd', 7,
      'The per trial per participant variability of the divergence point.\n'
      'The value sampled from the "other" normal distribution (every trial) '
-     'will be summed to the divergence point'),
+     'will be summed to the Divergence Point'),
     (ListField, 'Variation in Prob. of looks to Target', 'subj_per_trial_bias_var_sd', 0.005,
      'The per trial per participant variability of the participant bias.\n'
      'The value sampled from the "other" normal distribution (every trial) '
@@ -307,22 +325,27 @@ per_subj_var = [
     (Field, 'Per participant variation. This is set once for each participant.',
      'For each participant, we sample from a normal distribution '
      'N(mean=0, sd=variable) and use the sampled value directly to influence '
-     'something. (no per-trial random resampling as in the previous section) '),
+     'something. (no per-trial random resampling as in the previous section)\n\n'
+     'See the notes for each variable to know exactly how the sampled number '
+     'will be used'),
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
-    (ListField, 'Variation on Random Intercepts', 'subj_dpoint_rand_intercept_sd', 15,
+    (ListField, 'Variation in Random Intercepts\n(i.e., in the Divergence Point for Condition 0)\n',
+                'subj_dpoint_rand_intercept_sd', 15,
      'The per participant random intercept of the divergence point.\n'
      'The value sampled from the normal distribution will be summed to the '
-     'divergence point'),
-    (ListField, 'Variation on Random Slopes', 'subj_dpoint_rand_slope_sd', 5,
+     'Divergence Point'),
+    (ListField, 'Variation in Random Slopes\n(i.e., in the difference between conditions)\n',
+                'subj_dpoint_rand_slope_sd', 5,
      'The per participant random slope of the divergence point.\n'
      'The value sampled from the normal distribution will be summed to '
-     '`cond_effect` before calculating the new divergence point.'),
-    (ListField, 'Variation of Biases to Target Obj.', 'subj_bias_var_sd', 0.05,
+     '`Effect of Condition` before calculating the new Divergence Point.'),
+    (ListField, 'Variation in Prob. of looks to Target\n(i.e., of Biases to Target Obj.)\n',
+                'subj_bias_var_sd', 0.05,
      'The per participant bias towards one of the images.\n'
      'The value sampled from the normal distribution will be summed to the '
      'probability of looking to the target.'),
-    (ListField, 'Variation on "Divergence Speeds"', 'subj_dspeed_bias_var_sd', 4,
+    (ListField, 'Variation in "Div. Speed"', 'subj_dspeed_bias_var_sd', 4,
      'The per participant bias on the "divergence speed". The idea is that '
      'some participants diverge faster than others.\n'
      'The value sampled from the normal distribution will influence the function '
@@ -333,16 +356,18 @@ per_subj_var = [
 per_item_var = [
     (Field, 'Per item variation. This is set once for each combination item/condition',
      '(I do it along with condition because I assume that the items are '
-     'different in the different conditions)\n'
+     'different in the different conditions)\n\n'
      'For each combination item/condition, we sample from a normal distribution '
      'N(mean=0, sd=variable) and use the sampled value directly to influence '
-     'something.'),
+     'something.\n\n'
+     'See the notes for each variable to know exactly how the sampled number '
+     'will be used'),
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
     (ListField, 'Variation on Divergence Point', 'item_dpoint_bias_sd', 15,
-     'The per item variability on the divergence point.\n'
+     'The per item variability on the Divergence Point.\n'
      'The value sampled from the normal distribution will be summed to the '
-     'divergence point'),
+     'Divergence Point'),
     (ListField, 'Variation in Prob. of looks to Target', 'item_prob_bias_sd', 0.05,
      'The per item bias towards one of the other images.\n'
      'This bias models the situation where one of the images of a given item '
@@ -365,11 +390,12 @@ outmonitor_var = [
     (Field, '(Use commas to input multiple values)', None),
     (Field, '', None),
     (ListField, 'Overall Prob. of looking away', 'outmonitor_look_prob', 0.01,
-     None),
+     'How likely, in general, people are to look away from the monitor, i.e., '
+     'not into any object, upon performing a saccade (upon starting a fixation).'),
     (ListField, 'Variation per Participant', 'subj_outmonitor_look_bias_sd', 0.001,
      'The per participant bias for looking away.\n'
      'For each participant, we sample from a normal distribution '
-     'N(mean=0, sd=subj_outmonitor_look_bias_sd) and sum the sampled value to '
+     'N(mean=0, sd=`Variation per Participant`) and sum the sampled value to '
      'the probability of looking away.')
 ]
 
@@ -383,38 +409,6 @@ section_content = [
     per_item_var,
     outmonitor_var
 ]
-
-
-def create_field(frame, text, field_type, varname):
-    global params
-    global how_to_access
-    whole_frame = tk.Frame(master=frame,
-                           relief=tk.GROOVE,
-                           borderwidth=5)
-    whole_frame.pack(fill=tk.BOTH, expand=True)
-
-    label = tk.Label(master=whole_frame, text=text)
-    label.grid(row=0, column=0)
-
-    if field_type == 'text':
-        field_obj = tk.Entry(master=whole_frame,
-                             width=50)
-        how_to_access[varname] = 'call_get'
-        params[varname] = field_obj
-    elif field_type == 'checkbox':
-        #field_obj = tk.Checkbutton(window, text='Python',variable=var1, onvalue=1, offvalue=0, command=print_selection)
-        params[varname] = None
-        field_obj = tk.Checkbutton(master=whole_frame,
-                                   text='Python',
-                                   variable=params[varname],
-                                   onvalue=1,
-                                   offvalue=0)
-        how_to_access[varname] = 'use_var'
-    field_obj.grid(row=0, column=1)
-
-def create_label(frame, text):
-    label = tk.Label(master=frame, text=text)
-    label.pack()
 
 def make_widget(frame, i):
     widget_type = i[0]
@@ -439,10 +433,12 @@ def make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets
                      relief=tk.GROOVE,
                      borderwidth=5)
     frame.grid(sticky='nswe',
-               row=4, column=1)
+               row=3, column=1, rowspan=2)
 
-    label = tk.Label(master=frame, text="We'll display the status here")
+    label = tk.Label(master=frame, text="We'll display the status here",
+                     font=("Arial", 14))
     button = tk.Button(master=frame, text='Run Generator',
+                       font=("Arial", 14),
                        command=lambda: run_fake_data_gen(label,
                                                          data_widgets,
                                                          general_widgets,
@@ -454,12 +450,13 @@ def make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets
 def run_application():
     # Create the Window, set up the frames, etc...
     window = tk.Tk()
+    window.title('DPA Fake Data Generator')
     data_widgets = []
     for idx,i in enumerate(section_content):
         data_widgets.extend(make_section_frame(window, i, row=idx, column=0, rowspan=1))
 
     general_widgets = make_section_frame(window, general_vars, row=0, column=1, rowspan=2)
-    whole_dataset_widgets = make_section_frame(window, whole_dataset_vars, row=2, column=1, rowspan=2)
+    whole_dataset_widgets = make_section_frame(window, whole_dataset_vars, row=2, column=1, rowspan=1)
     make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets)
 
     window.mainloop()

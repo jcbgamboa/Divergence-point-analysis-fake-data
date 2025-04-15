@@ -56,7 +56,7 @@ def run_fake_data_generator(general_params, params, d_idx, seed):
 
     run_args = [
         PY, str(DPA_FAKE_DATA_GEN),
-        "--out_file", str(out_file_name),
+        "--out_file", os.path.join(general_params['out_folder'], str(out_file_name)),
         "--rand_seed", str(seed),
         "--n_subjs", str(params['n_subjs']),
         "--n_conds", str(params['n_conds']),
