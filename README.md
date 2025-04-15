@@ -66,9 +66,9 @@ pip install pandas scipy plotnine
 ```
 
 Make a new folder and download the files from this repository into it.
-Now twice on the file `main.py`. This will open its code in a program
-called IDLE. If it doesn't, try clicking with the right button and
-choosing `Open with -> IDLE (Py 3.8)`. Now, click anywhere on the
+Now click twice on the file `main.py`. This should run the code.
+If it instead opens its code in a program called IDLE, then you
+will need to do the following. Click anywhere on the
 code. At the top of your screen, the menu `Run` will appear. Now
 click on `Run -> Run module` (or press F5). This will start the
 program.
@@ -306,13 +306,6 @@ the scripts are, with the name that was set in the variable
 **NOTE**: generating the datasets may take A LONG TIME, especially if you
 set a large `population_multiplier`. Don't worry if the GUI seem to
 "crash" when you click `Run Generator`.
-
-
-TODO
-====
-
- * Add references to the following terms
-    * Visual World Paradigm
 
 
 
