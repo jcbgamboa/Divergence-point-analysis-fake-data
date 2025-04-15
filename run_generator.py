@@ -50,8 +50,8 @@ def run_fake_data_generator(general_params, params, d_idx, seed):
                               'ipsd' + str(params['item_prob_bias_sd']),
                               'idssd' + str(params['item_dspeed_bias_sd']),
 
-                              "olp", str(params['outmonitor_look_prob']),
-                              "solpsd", str(params['subj_outmonitor_look_bias_sd']),
+                              "olp" + str(params['outmonitor_look_prob']),
+                              "solpsd" + str(params['subj_outmonitor_look_bias_sd']),
                               seed])
 
     run_args = [

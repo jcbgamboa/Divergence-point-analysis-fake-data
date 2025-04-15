@@ -7,6 +7,8 @@ import run_generator as rg
 cwd = os.path.dirname(os.path.realpath(__file__))
 os.chdir(cwd)
 
+FONT_SIZE = 13
+
 
 def extract_parameters(data_widgets, general_widgets, whole_dataset_widgets):
     # TODO: maybe remove the code repetition here?
@@ -82,7 +84,7 @@ class CreateToolTip(object):
         self.tw.wm_geometry("+%d+%d" % (x, y))
         label = tk.Label(self.tw, text=self.text, justify='left',
                        background="#ffffff", relief='solid', borderwidth=1,
-                       wraplength = self.wraplength, font=("Arial", 14))
+                       wraplength = self.wraplength, font=("Arial", FONT_SIZE))
         label.pack(ipadx=1)
 
     def hidetip(self):
@@ -104,7 +106,7 @@ class Field:
         self.own_frame.pack(fill=tk.BOTH, expand=True)
 
         self.label = tk.Label(master=self.own_frame, text=text,
-                              justify='left', font=("Arial", 14))
+                              justify='left', font=("Arial", FONT_SIZE))
         self.label.grid(row=0, column=0, sticky='w', padx=5)
         if tooltip is not None:
             self.label_tooltip = CreateToolTip(self.label, tooltip)
@@ -436,9 +438,9 @@ def make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets
                row=3, column=1, rowspan=2)
 
     label = tk.Label(master=frame, text="We'll display the status here",
-                     font=("Arial", 14))
+                     font=("Arial", FONT_SIZE))
     button = tk.Button(master=frame, text='Run Generator',
-                       font=("Arial", 14),
+                       font=("Arial", FONT_SIZE),
                        command=lambda: run_fake_data_gen(label,
                                                          data_widgets,
                                                          general_widgets,
