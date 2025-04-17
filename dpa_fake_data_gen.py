@@ -301,7 +301,7 @@ def parse_command_line():
                                 'is called `fixation_stats`')
 
     argparser.add_argument('--dump_per_ms_look_probs',
-                           default=True,
+                           default=False,
                            action='store_true',
                            help='(Requires `force_dpoint[_me]` to be set.) '
                                 'If set, produces a file with the each participant\'s '
@@ -802,33 +802,33 @@ if __name__ == '__main__':
         print("Calculating t-tests and forcing divergence point")
         per_ms_looks_df, ttests_df, actual_divergence_points = \
                                         find_divergence_point(out_df, args)
-        if args.dump_per_ms_look_probs:
-            print('Dumping per ms and participant look probabilities to target')
-            per_ms_looks_df.to_csv('per_ms_look_probs.csv')
-            ttests_df.to_csv('population_ttests.csv')
-            with open('actual_divergence_points.txt', 'w') as f:
-                f.write("{}".format(actual_divergence_points))
-            del per_ms_looks_df, ttests_df
+        # if args.dump_per_ms_look_probs:
+        #     print('Dumping per ms and participant look probabilities to target')
+        #     per_ms_looks_df.to_csv('per_ms_look_probs.csv')
+        #     ttests_df.to_csv('population_ttests.csv')
+        #     with open('actual_divergence_points.txt', 'w') as f:
+        #         f.write("{}".format(actual_divergence_points))
+        #     del per_ms_looks_df, ttests_df
 
         out_df = shift_time(out_df, actual_divergence_points, args)
 
     print("Dumping into output file")
     out_df.to_csv(args.out_file)
 
-    if args.dump_per_trial_fixation_stats:
-        import statistics as s
-        print("Calculating per trial fixation stats")
-        stats = per_trial_fixation_stats()
-        print("Dumping per trial fixation stats")
-        stats.to_csv('per_trial_fixation_stats.csv')
-        #print(stats)
+    # if args.dump_per_trial_fixation_stats:
+    #     import statistics as s
+    #     print("Calculating per trial fixation stats")
+    #     stats = per_trial_fixation_stats()
+    #     print("Dumping per trial fixation stats")
+    #     stats.to_csv('per_trial_fixation_stats.csv')
+    #     #print(stats)
 
-    if args.dump_overall_fixation_stats:
-        import statistics as s
-        from plotnine import *
-        print("Calculating overall fixation stats")
-        stats = overall_fixation_stats('fixation_stats')
-        print("Dumping per trial fixation stats")
+    # if args.dump_overall_fixation_stats:
+    #     import statistics as s
+    #     from plotnine import *
+    #     print("Calculating overall fixation stats")
+    #     stats = overall_fixation_stats('fixation_stats')
+    #     print("Dumping per trial fixation stats")
 
     print("Done")
 

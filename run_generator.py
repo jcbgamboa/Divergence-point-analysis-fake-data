@@ -82,10 +82,10 @@ def run_fake_data_generator(general_params, params, d_idx, seed):
         "--subj_outmonitor_look_bias_sd", str(params['subj_outmonitor_look_bias_sd']),
         "--pop_multiplier", str(general_params['population_multiplier']),
     ]
-    if general_params['dump_per_trial_fixation_stats']:
-        run_args.append("--dump_per_trial_fixation_stats")
-    if general_params['dump_overall_fixation_stats']:
-        run_args.append("--dump_overall_fixation_stats")
+    #if general_params['dump_per_trial_fixation_stats']:
+    #    run_args.append("--dump_per_trial_fixation_stats")
+    #if general_params['dump_overall_fixation_stats']:
+    #    run_args.append("--dump_overall_fixation_stats")
     if general_params['force_divergence_point']:
         run_args.append("--force_dpoint")
     if general_params['force_dp_memory_efficient']:

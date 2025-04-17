@@ -235,10 +235,10 @@ general_vars = [
      'This will be used to define the size of the "larger population" in the '
      'description of `Force Divergence Point` above. It will have size: '
      '`Number of Participants * Population Multiplier`. '),
-    (CheckboxField, 'Dump per trial fixation stats', 'dump_per_trial_fixation_stats', False,
-     'Additional stats on the length of each trial fixation.'),
-    (CheckboxField, 'Dump overall fixation stats', 'dump_overall_fixation_stats', False,
-     'Additional stats on the length of fixations for the whole dataset.')
+    # (CheckboxField, 'Dump per trial fixation stats', 'dump_per_trial_fixation_stats', False,
+    #  'Additional stats on the length of each trial fixation.'),
+    # (CheckboxField, 'Dump overall fixation stats', 'dump_overall_fixation_stats', False,
+    #  'Additional stats on the length of fixations for the whole dataset.')
 ]
 
 whole_dataset_vars = [
