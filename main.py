@@ -170,7 +170,7 @@ class CheckboxField(Field):
     def __init__(self, frame, text, varname, default_value, tooltip):
         super().__init__(frame, text, tooltip)
         self.varname = varname
-        self.value = default_value
+        self.value = tk.BooleanVar(value=default_value)
         self.checkbox_obj = tk.Checkbutton(master=self.own_frame,
                                    text='',
                                    variable=self.value,
@@ -181,7 +181,7 @@ class CheckboxField(Field):
         self.checkbox_obj.grid(row=0, column=1, sticky=tk.E)
 
     def get_value(self):
-        return self.value
+        return self.value.get()
 
 general_vars = [
     (Field, 'General variables',
@@ -454,6 +454,11 @@ def run_application():
     window = tk.Tk()
     window.title('DPA Fake Data Generator')
     data_widgets = []
+
+    #variable_descriptions = tk.Label(
+    #    master=window,
+    #    text="Hover the mouse over the variables to see what they do.",
+    #    font=("Arial", FONT_SIZE))
     for idx,i in enumerate(section_content):
         data_widgets.extend(make_section_frame(window, i, row=idx, column=0, rowspan=1))
 
