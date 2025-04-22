@@ -40,66 +40,12 @@ def run_fake_data_gen(label, data_widgets, general_widgets, whole_dataset_widget
     rg.generate_datasets(general_params, params, update_label)
 
 
-class CreateToolTip(object):
-    """
-    From: https://stackoverflow.com/a/36221216
-    create a tooltip for a given widget
-    """
-    def __init__(self, widget, text='widget info'):
-        self.waittime = 500     #miliseconds
-        self.wraplength = 700   #pixels
-        self.widget = widget
-        self.text = text
-        self.widget.bind("<Enter>", self.enter)
-        self.widget.bind("<Leave>", self.leave)
-        self.widget.bind("<ButtonPress>", self.leave)
-        self.id = None
-        self.tw = None
-
-    def enter(self, event=None):
-        self.schedule()
-
-    def leave(self, event=None):
-        self.unschedule()
-        self.hidetip()
-
-    def schedule(self):
-        self.unschedule()
-        self.id = self.widget.after(self.waittime, self.showtip)
-
-    def unschedule(self):
-        id = self.id
-        self.id = None
-        if id:
-            self.widget.after_cancel(id)
-
-    def showtip(self, event=None):
-        x = y = 0
-        x, y, cx, cy = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 25
-        y += self.widget.winfo_rooty() + 20
-        # creates a toplevel window
-        self.tw = tk.Toplevel(self.widget)
-        # Leaves only the label and removes the app window
-        self.tw.wm_overrideredirect(True)
-        self.tw.wm_geometry("+%d+%d" % (x, y))
-        label = tk.Label(self.tw, text=self.text, justify='left',
-                       background="#ffffff", relief='solid', borderwidth=1,
-                       wraplength = self.wraplength, font=("Arial", FONT_SIZE))
-        label.pack(ipadx=1)
-
-    def hidetip(self):
-        tw = self.tw
-        self.tw= None
-        if tw:
-            tw.destroy()
-
-
 class Field:
-    def __init__(self, frame, defaults, text, tooltip):
+    def __init__(self, frame, defaults, hover_panel, text, tooltip):
         self.text = text
         self.tooltip = tooltip
         self.defaults = defaults
+        self.hover_panel = hover_panel
 
         self.own_frame = tk.Frame(master=frame)
                                #relief=tk.GROOVE,
@@ -112,12 +58,16 @@ class Field:
                               justify='left', font=("Arial", FONT_SIZE))
         self.label.grid(row=0, column=0, sticky='w', padx=5)
         if tooltip is not None:
-            self.label_tooltip = CreateToolTip(self.label, tooltip)
+            self.label.bind("<Enter>", self.display_info)
+            #self.label_tooltip = CreateToolTip(self.label, tooltip)
+
+    def display_info(self, event=None):
+        self.hover_panel['text'] = '\n\n' + self.tooltip
 
 
 class TextField(Field):
-    def __init__(self, frame, defaults, text, varname, tooltip):
-        super().__init__(frame, defaults, text, tooltip)
+    def __init__(self, frame, defaults, hover_panel, text, varname, tooltip):
+        super().__init__(frame, defaults, hover_panel, text, tooltip)
         self.varname = varname
         self.default_value = defaults[varname]
 
@@ -130,8 +80,8 @@ class TextField(Field):
 
 
 class NumberField(TextField):
-    def __init__(self, frame, defaults, text, varname, tooltip):
-        super().__init__(frame, defaults, text, varname, tooltip)
+    def __init__(self, frame, defaults, hover_panel, text, varname, tooltip):
+        super().__init__(frame, defaults, hover_panel, text, varname, tooltip)
         self.own_frame.columnconfigure(2, weight=1)
 
         self.buttons_frame = tk.Frame(master=self.own_frame)
@@ -158,8 +108,8 @@ class NumberField(TextField):
         return int(self.text_obj.get())
 
 class ListField(TextField):
-    def __init__(self, frame, defaults, text, varname, tooltip):
-        super().__init__(frame, defaults, text, varname, tooltip)
+    def __init__(self, frame, defaults, hover_panel, text, varname, tooltip):
+        super().__init__(frame, defaults, hover_panel, text, varname, tooltip)
 
     def get_value(self):
         # This is a hack so that Python doesn't complain if there is only a
@@ -173,8 +123,8 @@ class ListField(TextField):
 
 
 class CheckboxField(Field):
-    def __init__(self, frame, defaults, text, varname, tooltip):
-        super().__init__(frame, defaults, text, tooltip)
+    def __init__(self, frame, defaults, hover_panel, text, varname, tooltip):
+        super().__init__(frame, defaults, hover_panel, text, tooltip)
         self.varname = varname
         self.default_value = defaults[varname]
 
@@ -228,8 +178,8 @@ general_vars = [
      'If this is set, the generator will produce a larger population (of size '
      '`Number of Participants` x `Population Multiplier`), '
      'perform a DPA on this larger population, and then shift the trials so that\n\n'
-     ' * the Div. Point for Condition 0 is *exactly* at the time `Divergence Point`,\n'
-     ' * the Div. Point for Condition 1 is *exactly* at the time\n'
+     '-> the Div. Point for Condition 0 is *exactly* at the time `Divergence Point`,\n'
+     '-> the Div. Point for Condition 1 is *exactly* at the time\n'
      '   `Divergence Point + Condition Effect`,\n\n'
      '... and so on. Then, it will sample `Number of Participants` from this (larger) '
      'population to produce the final dataset.\n\n'
@@ -274,10 +224,10 @@ whole_dataset_vars = [
      'divergence point to be the specified value.'),
     (ListField, 'Effect of Condition', 'cond_effect',
      'The effect of each condition. For example, if the divergence point is 300 and '
-     '`Effect of Condition` is 100, then:\n'
-     'In condition 0, the divergence point will be 300 + (0 * 100) = 300ms\n'
-     'In condition 1, the divergence point will be 300 + (1 * 100) = 400ms\n'
-     'In condition 2, the divergence point will be 300 + (2 * 100) = 500ms\n'
+     '`Effect of Condition` is 100, then:\n\n'
+     '-> In condition 0, the divergence point will be\n300 + (0 * 100) = 300ms\n\n'
+     '-> In condition 1, the divergence point will be\n300 + (1 * 100) = 400ms\n\n'
+     '-> In condition 2, the divergence point will be\n300 + (2 * 100) = 500ms\n\n'
      '...')
 ]
 
@@ -421,13 +371,13 @@ section_content = [
     outmonitor_var
 ]
 
-def make_widget(frame, defaults, i):
+def make_widget(frame, defaults, hover_panel, i):
     widget_type = i[0]
-    widget = widget_type(frame, defaults, *i[1:])
+    widget = widget_type(frame, defaults, hover_panel, *i[1:])
     return widget
 
 
-def make_section_frame(window, defaults, frame_content, row, column, rowspan):
+def make_section_frame(window, defaults, hover_panel, frame_content, row, column, rowspan):
     frame = tk.Frame(master=window,
                      relief=tk.GROOVE,
                      borderwidth=5)
@@ -436,7 +386,7 @@ def make_section_frame(window, defaults, frame_content, row, column, rowspan):
                rowspan=rowspan)
     ret = []
     for i in frame_content:
-        ret.append(make_widget(frame, defaults, i))
+        ret.append(make_widget(frame, defaults, hover_panel, i))
     return ret
 
 def make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets):
@@ -465,15 +415,35 @@ def run_application():
     data_widgets = []
     defaults = config.config
 
-    #variable_descriptions = tk.Label(
-    #    master=window,
-    #    text="Hover the mouse over the variables to see what they do.",
-    #    font=("Arial", FONT_SIZE))
-    for idx,i in enumerate(section_content):
-        data_widgets.extend(make_section_frame(window, defaults, i, row=idx, column=0, rowspan=1))
+    title_panel = tk.Label(
+        master=window,
+        justify='center',
+        background="#ffffff", relief='solid', borderwidth=1,
+        font=("Arial", FONT_SIZE+2, "bold"),
+        text="Divergence Point Analysis\nFake Data Generator\n\n"
+             "Hover the mouse over the variables\nto see what they do\n\n"
+             "Once you're ready, click on Run Generator")
+    title_panel.grid(sticky='nswe', row=0, column=0)
 
-    general_widgets = make_section_frame(window, defaults, general_vars, row=0, column=1, rowspan=2)
-    whole_dataset_widgets = make_section_frame(window, defaults, whole_dataset_vars, row=2, column=1, rowspan=1)
+    # The whole Tooltip thing didn't work in Mac. I'll go for the lumberjack alternative
+    hover_panel_border = 5
+    hover_panel_wrap = 500
+    hover_panel_x_size = hover_panel_wrap + 3*hover_panel_border
+    window.columnconfigure(0, minsize=hover_panel_x_size)
+    hover_panel = tk.Label(
+        master=window,
+        justify='left', anchor='n',
+        background="#ffffff", relief='ridge', borderwidth=hover_panel_border,
+        wraplength=hover_panel_wrap,
+        font=("Monospace", FONT_SIZE),
+        text="\n\nHover the mouse over the variables to see what they do.")
+    hover_panel.grid(sticky='nswe', row=1, column=0, rowspan=4)
+
+    for idx,i in enumerate(section_content):
+        data_widgets.extend(make_section_frame(window, defaults, hover_panel, i, row=idx, column=2, rowspan=1))
+
+    general_widgets = make_section_frame(window, defaults, hover_panel, general_vars, row=0, column=1, rowspan=2)
+    whole_dataset_widgets = make_section_frame(window, defaults, hover_panel, whole_dataset_vars, row=2, column=1, rowspan=1)
     make_run_button(window, data_widgets, general_widgets, whole_dataset_widgets)
 
     window.mainloop()
