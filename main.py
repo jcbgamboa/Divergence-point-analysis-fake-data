@@ -62,7 +62,7 @@ class Field:
             #self.label_tooltip = CreateToolTip(self.label, tooltip)
 
     def display_info(self, event=None):
-        self.hover_panel['text'] = self.tooltip
+        self.hover_panel['text'] = '\n\n' + self.tooltip
 
 
 class TextField(Field):
@@ -178,8 +178,8 @@ general_vars = [
      'If this is set, the generator will produce a larger population (of size '
      '`Number of Participants` x `Population Multiplier`), '
      'perform a DPA on this larger population, and then shift the trials so that\n\n'
-     ' * the Div. Point for Condition 0 is *exactly* at the time `Divergence Point`,\n'
-     ' * the Div. Point for Condition 1 is *exactly* at the time\n'
+     '-> the Div. Point for Condition 0 is *exactly* at the time `Divergence Point`,\n'
+     '-> the Div. Point for Condition 1 is *exactly* at the time\n'
      '   `Divergence Point + Condition Effect`,\n\n'
      '... and so on. Then, it will sample `Number of Participants` from this (larger) '
      'population to produce the final dataset.\n\n'
@@ -224,10 +224,10 @@ whole_dataset_vars = [
      'divergence point to be the specified value.'),
     (ListField, 'Effect of Condition', 'cond_effect',
      'The effect of each condition. For example, if the divergence point is 300 and '
-     '`Effect of Condition` is 100, then:\n'
-     'In condition 0, the divergence point will be 300 + (0 * 100) = 300ms\n'
-     'In condition 1, the divergence point will be 300 + (1 * 100) = 400ms\n'
-     'In condition 2, the divergence point will be 300 + (2 * 100) = 500ms\n'
+     '`Effect of Condition` is 100, then:\n\n'
+     '-> In condition 0, the divergence point will be\n300 + (0 * 100) = 300ms\n\n'
+     '-> In condition 1, the divergence point will be\n300 + (1 * 100) = 400ms\n\n'
+     '-> In condition 2, the divergence point will be\n300 + (2 * 100) = 500ms\n\n'
      '...')
 ]
 
@@ -421,22 +421,22 @@ def run_application():
         background="#ffffff", relief='solid', borderwidth=1,
         font=("Arial", FONT_SIZE+2, "bold"),
         text="Divergence Point Analysis\nFake Data Generator\n\n"
-             "Hover the mouse over the variables to see what they do\n\n"
+             "Hover the mouse over the variables\nto see what they do\n\n"
              "Once you're ready, click on Run Generator")
     title_panel.grid(sticky='nswe', row=0, column=0)
 
     # The whole Tooltip thing didn't work in Mac. I'll go for the lumberjack alternative
     hover_panel_border = 5
-    hover_panel_wrap = 700
+    hover_panel_wrap = 500
     hover_panel_x_size = hover_panel_wrap + 3*hover_panel_border
     window.columnconfigure(0, minsize=hover_panel_x_size)
     hover_panel = tk.Label(
         master=window,
         justify='left', anchor='n',
-        background="#ffffff", relief='solid', borderwidth=hover_panel_border,
+        background="#ffffff", relief='ridge', borderwidth=hover_panel_border,
         wraplength=hover_panel_wrap,
-        font=("Arial", FONT_SIZE),
-        text="Hover the mouse over the variables to see what they do.")
+        font=("Monospace", FONT_SIZE),
+        text="\n\nHover the mouse over the variables to see what they do.")
     hover_panel.grid(sticky='nswe', row=1, column=0, rowspan=4)
 
     for idx,i in enumerate(section_content):
