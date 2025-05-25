@@ -52,7 +52,7 @@ def run_fake_data_generator(general_params, params, d_idx, seed):
 
                               "olp" + str(params['outmonitor_look_prob']),
                               "solpsd" + str(params['subj_outmonitor_look_bias_sd']),
-                              seed])
+                              seed]) + '.txt'
 
     run_args = [
         PY, str(DPA_FAKE_DATA_GEN),
