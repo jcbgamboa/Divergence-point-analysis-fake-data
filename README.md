@@ -8,7 +8,9 @@ is impacted by different analysis parameters. It can also be abused to do
 anything else that requires fake data generation.
 
 > **NOTE:**
+>
 > If you use this data generator, please cite:
+>
 > Fernandez, L., Nota, N., Gamboa, J. C. B., Amos, R., Corps, R. E., Hadley,
 > L. V., Naylor, G., & Pickering, M. J. (in preparation) Visual World Paradigm
 > and Divergence Point Analysis: The impact of researcher degrees of freedom
