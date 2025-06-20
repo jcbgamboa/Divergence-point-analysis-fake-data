@@ -7,9 +7,7 @@ how [Divergence Point Analysis](https://doi.org/10.1017/S1366728920000607)
 is impacted by different analysis parameters. It can also be abused to do
 anything else that requires fake data generation.
 
-> **NOTE:**
->
-> If you use this data generator, please cite:
+> If you use this data generator, please cite the paper that is associated with it:
 >
 > Fernandez, L., Nota, N., Gamboa, J. C. B., Amos, R., Corps, R. E., Hadley,
 > L. V., Naylor, G., & Pickering, M. J. (in preparation) Visual World Paradigm
