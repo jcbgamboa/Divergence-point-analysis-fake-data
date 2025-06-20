@@ -7,6 +7,13 @@ how [Divergence Point Analysis](https://doi.org/10.1017/S1366728920000607)
 is impacted by different analysis parameters. It can also be abused to do
 anything else that requires fake data generation.
 
+> **NOTE:**
+> If you use this data generator, please cite:
+> Fernandez, L., Nota, N., Gamboa, J. C. B., Amos, R., Corps, R. E., Hadley,
+> L. V., Naylor, G., & Pickering, M. J. (in preparation) Visual World Paradigm
+> and Divergence Point Analysis: The impact of researcher degrees of freedom
+> on real and simulated data.
+
 In a typical VWP task, participants come to the lab and sit in front of a
 computer while wearing headphones and having their eye tracked by an
 eye-tracker. At each trial, they hear a sentence and, at the
